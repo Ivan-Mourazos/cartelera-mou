@@ -1,0 +1,93 @@
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --vault: #08090b;
+  --slate: #15171b;
+  --celluloid: #f5f5f7;
+  --patina: #78cec2;
+  --cue: #d6ac72;
+  --splice: #ff7d87;
+
+  --canvas: var(--vault);
+  --surface: var(--slate);
+  --surface-soft: #101216;
+  --surface-raised: #1b1e23;
+  --surface-hover: #23262c;
+  --text: var(--celluloid);
+  --text-muted: color-mix(in srgb, var(--celluloid) 67%, transparent);
+  --text-subtle: color-mix(in srgb, var(--celluloid) 44%, transparent);
+  --border: color-mix(in srgb, var(--celluloid) 9%, transparent);
+  --border-strong: color-mix(in srgb, var(--celluloid) 16%, transparent);
+  --accent: var(--patina);
+  --accent-contrast: var(--vault);
+  --warning: var(--cue);
+  --danger: var(--splice);
+  --inspection-background: #1b1e23;
+  --inspection-text: var(--celluloid);
+  --scrim: color-mix(in srgb, var(--vault) 74%, transparent);
+  --shadow: 0 28px 80px rgb(0 0 0 / 52%);
+  --shadow-soft: 0 16px 42px rgb(0 0 0 / 24%);
+  --highlight: inset 0 1px 0 rgb(255 255 255 / 6%);
+
+  --font-display: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif;
+  --font-ui: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  --sidebar-width: 224px;
+  --context-bar-height: 58px;
+  --radius-small: 11px;
+  --radius-medium: 16px;
+  --radius-large: 22px;
+  --transition-fast: 170ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --canvas: #f5f5f7;
+  --surface: #ffffff;
+  --surface-soft: #eeeff2;
+  --surface-raised: #ffffff;
+  --surface-hover: #e5e7ea;
+  --text: #1d1d1f;
+  --text-muted: color-mix(in srgb, var(--vault) 70%, transparent);
+  --text-subtle: color-mix(in srgb, var(--vault) 52%, transparent);
+  --border: color-mix(in srgb, var(--vault) 9%, transparent);
+  --border-strong: color-mix(in srgb, var(--vault) 16%, transparent);
+  --accent: color-mix(in srgb, var(--patina) 58%, var(--vault));
+  --accent-contrast: var(--celluloid);
+  --warning: color-mix(in srgb, var(--cue) 62%, var(--vault));
+  --danger: color-mix(in srgb, var(--splice) 70%, var(--vault));
+  --scrim: color-mix(in srgb, var(--vault) 72%, transparent);
+  --shadow: 0 28px 72px rgb(24 28 32 / 18%);
+  --shadow-soft: 0 14px 34px rgb(24 28 32 / 10%);
+  --highlight: inset 0 1px 0 rgb(255 255 255 / 75%);
+}
+
+@media (prefers-color-scheme: light) {
+  :root[data-theme="system"] {
+    color-scheme: light;
+    --canvas: #f5f5f7;
+    --surface: #ffffff;
+    --surface-soft: #eeeff2;
+    --surface-raised: #ffffff;
+    --surface-hover: #e5e7ea;
+    --text: #1d1d1f;
+    --text-muted: color-mix(in srgb, var(--vault) 70%, transparent);
+    --text-subtle: color-mix(in srgb, var(--vault) 52%, transparent);
+    --border: color-mix(in srgb, var(--vault) 9%, transparent);
+    --border-strong: color-mix(in srgb, var(--vault) 16%, transparent);
+    --accent: color-mix(in srgb, var(--patina) 58%, var(--vault));
+    --accent-contrast: var(--celluloid);
+    --warning: color-mix(in srgb, var(--cue) 62%, var(--vault));
+    --danger: color-mix(in srgb, var(--splice) 70%, var(--vault));
+    --shadow: 0 28px 72px rgb(24 28 32 / 18%);
+    --shadow-soft: 0 14px 34px rgb(24 28 32 / 10%);
+    --highlight: inset 0 1px 0 rgb(255 255 255 / 75%);
+  }
+}
+
+@media (max-width: 1120px) {
+  :root,
+  :root[data-theme] {
+    --sidebar-width: 72px;
+  }
+}

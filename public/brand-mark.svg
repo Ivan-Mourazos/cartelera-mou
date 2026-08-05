@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title id="title">Marca provisional de CineVault</title>
+  <rect width="256" height="256" rx="48" fill="#0B1117"/>
+  <path d="M65 61h112a18 18 0 0 1 18 18v98a18 18 0 0 1-18 18H65a18 18 0 0 1-18-18V79a18 18 0 0 1 18-18Z" fill="none" stroke="#69C8B6" stroke-width="12"/>
+  <path d="M94 87h97a18 18 0 0 1 18 18v82a18 18 0 0 1-18 18H94a18 18 0 0 1-18-18v-82a18 18 0 0 1 18-18Z" fill="#151E27" stroke="#F2E8D5" stroke-width="10"/>
+  <path d="m130 119 43 27-43 27Z" fill="#E8AB5B"/>
+  <circle cx="70" cy="84" r="6" fill="#F2E8D5"/>
+  <circle cx="70" cy="112" r="6" fill="#F2E8D5"/>
+  <circle cx="70" cy="144" r="6" fill="#F2E8D5"/>
+  <circle cx="70" cy="172" r="6" fill="#F2E8D5"/>
+</svg>

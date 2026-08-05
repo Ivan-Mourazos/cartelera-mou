@@ -1,0 +1,32 @@
+# JavaScript
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.vite/
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite3
+*.db
+
+# Editors and OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+Thumbs.db
+Desktop.ini
+
+# Local test and runtime output
+logs/
+screenshots/
+test-results/
+output/playwright/*.log
+.codebase-memory/
