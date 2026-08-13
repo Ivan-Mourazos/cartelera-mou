@@ -1,18 +1,11 @@
 {
-  "name": "cinevault-desktop",
+  "name": "renombrador-inteligente",
   "private": true,
-  "version": "0.1.0",
+  "version": "1.0.0",
   "type": "module",
-  "packageManager": "pnpm@11.9.0",
-  "engines": {
-    "node": ">=20.19.0"
-  },
   "scripts": {
-    "brand:sync": "node scripts/sync-branding.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "desktop:dev": "pnpm brand:sync && tauri dev",
-    "desktop:build": "pnpm brand:sync && tauri build",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -22,16 +15,14 @@
   },
   "dependencies": {
     "@tanstack/react-virtual": "3.14.9",
-    "@tauri-apps/api": "2.11.1",
-    "@tauri-apps/plugin-dialog": "2.7.2",
     "lucide-react": "1.28.0",
+    "mediainfo.js": "^0.3.7",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
-    "@tauri-apps/cli": "2.11.4",
     "@types/node": "^26.1.2",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
@@ -44,5 +35,6 @@
     "typescript-eslint": "8.65.0",
     "vite": "8.2.0",
     "vitest": "^4.0.17"
-  }
+  },
+  "packageManager": "pnpm@10.33.2+sha512.a90faf6feeab71ad6c6e57f94e0fe1a12f5dcc22cd754db40ae9593eb6a3e0b6b12e3540218bb37ae083404b1f2ce6db2a4121e979829b4aff94b99f49da1cf8"
 }

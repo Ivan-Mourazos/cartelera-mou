@@ -18,7 +18,10 @@ export type FilenameTokenCategory =
   | "subtitle-language"
   | "language-marker"
   | "edition"
+  | "season-episode"
   | "release-group"
+  | "container"
+  | "website-noise"
   | "unknown";
 
 export interface FilenameToken {

@@ -26,7 +26,7 @@ describe("generateMediaFilename", () => {
 
     expect(generated.filename).toBe(
       "Dune - Parte dos (2024) [2160p] [UHD Blu-ray] [REMUX] [HEVC] [10-bit] " +
-        "[Dolby Vision] [Profile 8] [HDR10] [TrueHD] [Atmos] [7.1] [ES] [EN] [SUB ES].mkv",
+        "[Dolby Vision] [Profile 8] [HDR10] [TrueHD] [Atmos] [7.1] [ES] [EN] [subs ES].mkv",
     );
     expect(generated.filename).not.toContain("[]");
     expect(generated.filename).not.toContain("ID-693134");
@@ -106,9 +106,9 @@ describe("generateMediaFilename", () => {
       extension: "mkv",
     });
 
-    expect(generated.tags).toEqual(["SUB ES EN"]);
-    expect(generated.filename).toBe("Arrival [SUB ES EN].mkv");
-    expect(generated.filename).not.toContain("[SUB]");
+    expect(generated.tags).toEqual(["subs ES EN"]);
+    expect(generated.filename).toBe("Arrival [subs ES EN].mkv");
+    expect(generated.filename).not.toContain("[subs]");
   });
 
   it("sanitizes a canonical label that Windows cannot represent literally", () => {

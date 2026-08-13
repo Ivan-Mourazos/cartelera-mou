@@ -19,13 +19,14 @@ const NON_TITLE_CATEGORIES = new Set([
   "subtitle-language",
   "language-marker",
   "edition",
+  "season-episode",
   "release-group",
+  "container",
+  "website-noise",
 ]);
 
 const titleBoundary = (tokens: ReturnType<typeof tokenizeFilename>["tokens"]): number => {
-  const yearIndex = tokens.findIndex((token) => token.categories.has("year"));
-  if (yearIndex >= 0) return yearIndex;
-
+  // The title boundary is the index of the FIRST token that is recognized as metadata / year / container / website
   const metadataIndex = tokens.findIndex((token) =>
     [...token.categories].some((category) => NON_TITLE_CATEGORIES.has(category)),
   );
@@ -45,10 +46,28 @@ export const parseMediaFilename = (filename: string): ParsedFilename => {
   );
   for (const token of titleTokens) token.categories.add("title");
 
-  const probableTitle = titleTokens
-    .map((token) => token.raw)
-    .join(" ")
+  // Determine boundary start position in the original stem string
+  const boundaryToken = tokenized.tokens[boundary];
+  const boundaryStart = boundaryToken !== undefined ? boundaryToken.start : tokenized.stem.length;
+
+  const rawPrefix = tokenized.stem.slice(0, boundaryStart);
+
+  // If there are parenthesized notes before the boundary (like alternate titles e.g. "(As bestas)"),
+  // clean them to preserve the primary title
+  let cleanTitle = rawPrefix
+    .replace(/[[()][^\])]*[\])]/gu, " ")
+    .replace(/[[\]()]+/gu, " ")
+    .replace(/[.\-_]+/gu, " ")
+    .replace(/\s+/gu, " ")
     .trim();
+
+  if (!cleanTitle && titleTokens.length > 0) {
+    cleanTitle = titleTokens
+      .map((t) => t.raw)
+      .join(" ")
+      .trim();
+  }
+
   const tokens: FilenameToken[] = tokenized.tokens.map((token) => ({
     raw: token.raw,
     normalized: token.normalized,
@@ -64,7 +83,7 @@ export const parseMediaFilename = (filename: string): ParsedFilename => {
     originalFilename: tokenized.originalFilename,
     originalStem: tokenized.stem,
     extension: tokenized.extension,
-    probableTitle: probableTitle || tokenized.stem,
+    probableTitle: cleanTitle || tokenized.stem,
     ...(classified.year === undefined ? {} : { year: classified.year }),
     ...(classified.releaseGroup === undefined ? {} : { releaseGroup: classified.releaseGroup }),
     tokens,

@@ -1,7 +1,7 @@
 {
-  "productName": "CineVault",
-  "shortName": "CineVault",
-  "tagline": "Tu archivo de cine, bajo control.",
-  "description": "Biblioteca local y renombrado seguro de archivos cinematográficos.",
+  "productName": "Renombrador Inteligente",
+  "shortName": "Renombrador",
+  "tagline": "Renombrado inteligente, limpio y elegante de archivos.",
+  "description": "Web minimalista para sugerir y renombrar archivos inteligentemente con diseño limpio estilo Apple.",
   "supportEmail": ""
 }

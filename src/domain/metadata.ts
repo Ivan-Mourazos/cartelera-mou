@@ -37,6 +37,7 @@ export interface MetadataFieldValues {
   subtitleLanguage: string;
   multipleAudioLanguages: boolean;
   edition: SpecialEdition;
+  seasonEpisode: string;
   releaseGroup: string;
   tmdbId: number;
 }

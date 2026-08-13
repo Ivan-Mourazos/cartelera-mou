@@ -1,4 +1,4 @@
-import { evidenceFor, type MetadataEvidence, type VideoCodec } from "../metadata";
+import { evidenceFor, type MetadataEvidence, type Resolution, type VideoCodec } from "../metadata";
 import type { FilenameTokenCategory, MutableFilenameToken, TokenizedFilename } from "./types";
 
 export interface ClassifiedFilename {
@@ -57,16 +57,43 @@ const classifyYearsAndResolutions = (
   evidence: MetadataEvidence[],
 ): number | undefined => {
   let year: number | undefined;
+  const currentMaxYear = new Date().getFullYear() + 2;
   const resolutions = new Set(["4320P", "2160P", "1440P", "1080P", "720P", "576P", "480P"]);
 
+  // Collect candidate 4-digit years
+  const yearCandidates: { index: number; year: number }[] = [];
   for (const [index, token] of tokens.entries()) {
     if (/^(?:18|19|20|21)\d{2}$/u.test(token.normalized)) {
       const candidate = Number(token.normalized);
-      if (year === undefined && candidate >= 1878 && candidate <= 2100) {
-        year = candidate;
-        add(evidence, tokens, [index], "year", "year", candidate, "Año explícito en el nombre");
-        continue;
+      if (candidate >= 1878 && candidate <= 2100) {
+        yearCandidates.push({ index, year: candidate });
       }
+    }
+  }
+
+  // If there are multiple candidates, prefer the realistic release year
+  let selectedCandidate: { index: number; year: number } | undefined;
+  if (yearCandidates.length > 0) {
+    const realisticCandidates = yearCandidates.filter((c) => c.year <= currentMaxYear);
+    selectedCandidate =
+      realisticCandidates.length > 0
+        ? realisticCandidates[realisticCandidates.length - 1]
+        : yearCandidates[0];
+  }
+
+  for (const [index, token] of tokens.entries()) {
+    if (index === selectedCandidate?.index && year === undefined) {
+      year = selectedCandidate.year;
+      add(
+        evidence,
+        tokens,
+        [index],
+        "year",
+        "year",
+        selectedCandidate.year,
+        "Año explícito en el nombre",
+      );
+      continue;
     }
 
     if (resolutions.has(token.normalized)) {
@@ -76,8 +103,21 @@ const classifyYearsAndResolutions = (
         [index],
         "resolution",
         "resolution",
-        token.normalized.toLowerCase() as Parameters<typeof evidenceFor<"resolution">>[1],
-        "Resolución explícita en el nombre",
+        token.raw.toLowerCase() as Resolution,
+        "Resolución estándar en píxeles verticales",
+      );
+      continue;
+    }
+
+    if (token.normalized === "4K") {
+      add(
+        evidence,
+        tokens,
+        [index],
+        "resolution",
+        "resolution",
+        "2160p",
+        "4K mapeado canónicamente a 2160p",
       );
     }
   }
@@ -85,26 +125,219 @@ const classifyYearsAndResolutions = (
   return year;
 };
 
-const classifyEditions = (tokens: MutableFilenameToken[], evidence: MetadataEvidence[]): void => {
+const formatEpisodeNumber = (sNum: number, eNum: number, secondENum?: number): string => {
+  const base = `${sNum}${String(eNum).padStart(2, "0")}`;
+  if (secondENum !== undefined) {
+    return `${base}-${sNum}${String(secondENum).padStart(2, "0")}`;
+  }
+  return base;
+};
+
+const classifyEpisodes = (tokens: MutableFilenameToken[], evidence: MetadataEvidence[]): void => {
   for (let index = 0; index < tokens.length; index += 1) {
-    if (tokens[index]?.normalized === "IMAX") {
-      add(evidence, tokens, [index], "edition", "edition", "IMAX", "Edición IMAX explícita");
-    } else if (tokens[index]?.normalized === "EXTENDED") {
-      const indexes = tokens[index + 1]?.normalized === "EDITION" ? indexesFrom(index, 2) : [index];
+    const norm = tokens[index]?.normalized ?? "";
+
+    // 1. Single-token S01E05 or S01E05-E06 or S01E05E06
+    const sxxExx = /^S(\d{1,2})E(\d{1,3})(?:[-_.]?E(\d{1,3}))?$/iu.exec(norm);
+    if (sxxExx) {
+      const sNum = parseInt(sxxExx[1] ?? "1", 10);
+      const eNum = parseInt(sxxExx[2] ?? "1", 10);
+      const secondE = sxxExx[3] ? parseInt(sxxExx[3], 10) : undefined;
+      const canonical = formatEpisodeNumber(sNum, eNum, secondE);
+
       add(
         evidence,
         tokens,
-        indexes,
-        "edition",
-        "edition",
-        "Extended",
-        "Edición extendida explícita",
+        [index],
+        "season-episode",
+        "seasonEpisode",
+        canonical,
+        "Episodio de serie explícito (formato SxxExx)",
       );
-      if (indexes.length === 2) index += 1;
-    } else if (
-      sequenceAt(tokens, index, ["DIRECTORS", "CUT"]) ||
-      sequenceAt(tokens, index, ["DIRECTOR", "CUT"])
-    ) {
+      continue;
+    }
+
+    // 2. Spanish T01E05 (Temporada 1 Episodio 5)
+    const txxExx = /^T(\d{1,2})E(\d{1,3})(?:[-_.]?E(\d{1,3}))?$/iu.exec(norm);
+    if (txxExx) {
+      const sNum = parseInt(txxExx[1] ?? "1", 10);
+      const eNum = parseInt(txxExx[2] ?? "1", 10);
+      const secondE = txxExx[3] ? parseInt(txxExx[3], 10) : undefined;
+      const canonical = formatEpisodeNumber(sNum, eNum, secondE);
+
+      add(
+        evidence,
+        tokens,
+        [index],
+        "season-episode",
+        "seasonEpisode",
+        canonical,
+        "Episodio de serie explícito (formato TxxExx)",
+      );
+      continue;
+    }
+
+    // 3. 1x05 or 01x05 or 1x05-1x06
+    const nxN = /^(\d{1,2})X(\d{1,3})(?:[-_.]?(\d{1,2})X(\d{1,3}))?$/iu.exec(norm);
+    if (nxN) {
+      const sNum = parseInt(nxN[1] ?? "1", 10);
+      const eNum = parseInt(nxN[2] ?? "1", 10);
+      const secondE = nxN[4] ? parseInt(nxN[4], 10) : undefined;
+      const canonical = formatEpisodeNumber(sNum, eNum, secondE);
+
+      add(
+        evidence,
+        tokens,
+        [index],
+        "season-episode",
+        "seasonEpisode",
+        canonical,
+        "Episodio de serie explícito (formato NxN)",
+      );
+      continue;
+    }
+
+    // 4. Multi-token: TEMPORADA 1 [CAPITULO 5] / TEMP 1 / SEASON 1
+    const isSeasonWord =
+      norm === "TEMPORADA" || norm === "TEMPORADAS" || norm === "TEMP" || norm === "SEASON";
+    const nextTokenNorm = tokens[index + 1]?.normalized ?? "";
+    const isSeasonNum = /^\d{1,2}$/u.test(nextTokenNorm);
+
+    if (isSeasonWord && isSeasonNum) {
+      const sNum = parseInt(nextTokenNorm, 10);
+      const thirdTokenNorm = tokens[index + 2]?.normalized ?? "";
+      const isEpWord =
+        thirdTokenNorm === "CAPITULO" ||
+        thirdTokenNorm === "CAPITULOS" ||
+        thirdTokenNorm === "CAP" ||
+        thirdTokenNorm === "EPISODE" ||
+        thirdTokenNorm === "EPISODIO" ||
+        thirdTokenNorm === "EP";
+      const fourthTokenNorm = tokens[index + 3]?.normalized ?? "";
+      const isEpNum = /^\d{1,3}$/u.test(fourthTokenNorm);
+
+      if (isEpWord && isEpNum) {
+        const eNum = parseInt(fourthTokenNorm, 10);
+        const canonical = formatEpisodeNumber(sNum, eNum);
+
+        add(
+          evidence,
+          tokens,
+          indexesFrom(index, 4),
+          "season-episode",
+          "seasonEpisode",
+          canonical,
+          "Temporada y capítulo explícitos",
+        );
+        index += 3;
+        continue;
+      } else {
+        // Season only e.g. "Temporada 1" -> S01
+        const canonical = `T${String(sNum).padStart(2, "0")}`;
+        add(
+          evidence,
+          tokens,
+          indexesFrom(index, 2),
+          "season-episode",
+          "seasonEpisode",
+          canonical,
+          "Temporada explícita",
+        );
+        index += 1;
+        continue;
+      }
+    }
+
+    // 5. Multi-token: CAP 05 / CAPITULO 5 / EPISODIO 5 / EPISODE 5
+    const isSingleEpWord =
+      norm === "CAP" ||
+      norm === "CAPITULO" ||
+      norm === "CAPITULOS" ||
+      norm === "EPISODIO" ||
+      norm === "EPISODIOS" ||
+      norm === "EPISODE" ||
+      norm === "EP";
+    if (isSingleEpWord && /^\d{1,3}$/u.test(nextTokenNorm)) {
+      const numVal = parseInt(nextTokenNorm, 10);
+      let canonical: string;
+      if (numVal >= 100 && numVal <= 999) {
+        canonical = String(numVal);
+      } else {
+        canonical = `1${String(numVal).padStart(2, "0")}`;
+      }
+
+      add(
+        evidence,
+        tokens,
+        indexesFrom(index, 2),
+        "season-episode",
+        "seasonEpisode",
+        canonical,
+        "Capítulo explícito",
+      );
+      index += 1;
+      continue;
+    }
+
+    // 6. Single-token: CAP05 / CAP105 / EP05 / E05
+    const singleEpMatch = /^(?:CAP|EP|E)(\d{2,3})$/iu.exec(norm);
+    if (singleEpMatch) {
+      const numVal = parseInt(singleEpMatch[1] ?? "1", 10);
+      let canonical: string;
+      if (numVal >= 100 && numVal <= 999) {
+        canonical = String(numVal);
+      } else {
+        canonical = `1${String(numVal).padStart(2, "0")}`;
+      }
+
+      add(
+        evidence,
+        tokens,
+        [index],
+        "season-episode",
+        "seasonEpisode",
+        canonical,
+        "Capítulo explícito",
+      );
+      continue;
+    }
+
+    // 7. Standalone 3-digit episode number e.g. 308, 201, 105 (Season 3 Ep 08, Season 2 Ep 01)
+    if (/^[1-9]\d{2}(?:-[1-9]\d{2})?$/u.test(norm)) {
+      const parts = norm.split("-");
+      const firstNum = parseInt(parts[0] ?? "0", 10);
+      const epNum = firstNum % 100;
+      // Filter out resolution tokens (480, 576, 720) and common audio bitrates
+      const isKnownNonEpisode =
+        firstNum === 480 ||
+        firstNum === 576 ||
+        firstNum === 720 ||
+        firstNum === 128 ||
+        firstNum === 192 ||
+        firstNum === 256 ||
+        firstNum === 320 ||
+        firstNum === 384 ||
+        firstNum === 448 ||
+        firstNum === 640;
+
+      if (!isKnownNonEpisode && epNum >= 1 && epNum <= 50) {
+        add(
+          evidence,
+          tokens,
+          [index],
+          "season-episode",
+          "seasonEpisode",
+          norm,
+          "Número de capítulo (formato 3 dígitos)",
+        );
+      }
+    }
+  }
+};
+
+const classifyEditions = (tokens: MutableFilenameToken[], evidence: MetadataEvidence[]): void => {
+  for (let index = 0; index < tokens.length; index += 1) {
+    if (sequenceAt(tokens, index, ["DIRECTORS", "CUT"])) {
       add(
         evidence,
         tokens,
@@ -112,15 +345,39 @@ const classifyEditions = (tokens: MutableFilenameToken[], evidence: MetadataEvid
         "edition",
         "edition",
         "Director's Cut",
-        "Edición del director explícita",
+        "Director's Cut explícito",
       );
       index += 1;
+    } else if (
+      sequenceAt(tokens, index, ["EXTENDED", "CUT"]) ||
+      sequenceAt(tokens, index, ["EXTENDED", "EDITION"])
+    ) {
+      add(
+        evidence,
+        tokens,
+        indexesFrom(index, 2),
+        "edition",
+        "edition",
+        "Extended",
+        "Extended Cut/Edition explícito",
+      );
+      index += 1;
+    } else if (tokens[index]?.normalized === "EXTENDED") {
+      add(evidence, tokens, [index], "edition", "edition", "Extended", "Extended explícito");
+    } else if (tokens[index]?.normalized === "IMAX") {
+      add(evidence, tokens, [index], "edition", "edition", "IMAX", "IMAX explícito");
+    } else if (tokens[index]?.normalized === "REMASTERED") {
+      classify(tokens, [index], "edition");
+    } else if (tokens[index]?.normalized === "UNRATED") {
+      classify(tokens, [index], "edition");
     }
   }
 };
 
 const classifySources = (tokens: MutableFilenameToken[], evidence: MetadataEvidence[]): void => {
   for (let index = 0; index < tokens.length; index += 1) {
+    const normalized = tokens[index]?.normalized ?? "";
+
     if (sequenceAt(tokens, index, ["UHD", "BLURAY"])) {
       add(
         evidence,
@@ -143,37 +400,60 @@ const classifySources = (tokens: MutableFilenameToken[], evidence: MetadataEvide
         "Fuente UHD Blu-ray explícita",
       );
       index += 2;
-    } else if (tokens[index]?.normalized === "BLURAY") {
-      add(
-        evidence,
-        tokens,
-        [index],
-        "source",
-        "mediaSource",
-        "Blu-ray",
-        "Fuente Blu-ray explícita",
-      );
-    } else if (sequenceAt(tokens, index, ["BLU", "RAY"])) {
-      add(
-        evidence,
-        tokens,
-        indexesFrom(index, 2),
-        "source",
-        "mediaSource",
-        "Blu-ray",
-        "Fuente Blu-ray explícita",
-      );
-      index += 1;
-    } else if (tokens[index]?.normalized === "WEBDL" || sequenceAt(tokens, index, ["WEB", "DL"])) {
-      const indexes = tokens[index]?.normalized === "WEBDL" ? [index] : indexesFrom(index, 2);
+    } else if (
+      normalized === "BLURAY" ||
+      normalized === "BLU-RAY" ||
+      sequenceAt(tokens, index, ["BLU", "RAY"])
+    ) {
+      const len = sequenceAt(tokens, index, ["BLU", "RAY"]) ? 2 : 1;
+      // Check for "BluRay Rip"
+      if (tokens[index + len]?.normalized === "RIP") {
+        add(
+          evidence,
+          tokens,
+          indexesFrom(index, len + 1),
+          "source",
+          "mediaSource",
+          "Blu-ray",
+          "Fuente BluRay Rip explícita",
+        );
+        index += len;
+      } else {
+        add(
+          evidence,
+          tokens,
+          indexesFrom(index, len),
+          "source",
+          "mediaSource",
+          "Blu-ray",
+          "Fuente Blu-ray explícita",
+        );
+        index += len - 1;
+      }
+    } else if (normalized === "BRRIP" || normalized === "BDRIP") {
+      add(evidence, tokens, [index], "source", "mediaSource", "Blu-ray", "Fuente BDRip/BRRip");
+    } else if (normalized === "WEBDL" || sequenceAt(tokens, index, ["WEB", "DL"])) {
+      const indexes = normalized === "WEBDL" ? [index] : indexesFrom(index, 2);
       add(evidence, tokens, indexes, "source", "mediaSource", "WEB-DL", "Fuente WEB-DL explícita");
       index += indexes.length - 1;
-    } else if (tokens[index]?.normalized === "WEBRIP") {
-      add(evidence, tokens, [index], "source", "mediaSource", "WEBRip", "Fuente WEBRip explícita");
-    } else if (tokens[index]?.normalized === "HDTV") {
+    } else if (normalized === "WEBRIP" || sequenceAt(tokens, index, ["WEB", "RIP"])) {
+      const len = sequenceAt(tokens, index, ["WEB", "RIP"]) ? 2 : 1;
+      add(
+        evidence,
+        tokens,
+        indexesFrom(index, len),
+        "source",
+        "mediaSource",
+        "WEBRip",
+        "Fuente WEBRip explícita",
+      );
+      index += len - 1;
+    } else if (normalized === "HDTV" || normalized === "HDTVRIP") {
       add(evidence, tokens, [index], "source", "mediaSource", "HDTV", "Fuente HDTV explícita");
-    } else if (tokens[index]?.normalized === "DVD") {
+    } else if (normalized === "DVD" || normalized === "DVDRIP") {
       add(evidence, tokens, [index], "source", "mediaSource", "DVD", "Fuente DVD explícita");
+    } else if (normalized === "HDRIP" || normalized === "MICROHD") {
+      add(evidence, tokens, [index], "source", "mediaSource", "Blu-ray", "Fuente Rip");
     }
   }
 };
@@ -210,6 +490,8 @@ const classifyVideo = (tokens: MutableFilenameToken[], evidence: MetadataEvidenc
         codec,
         "Códec de vídeo explícito",
       );
+    } else if (normalized === "DIVX" || normalized === "XVID") {
+      classify(tokens, [index], "video-codec");
     }
 
     const compactBitDepth = /^(8|10|12)BIT$/u.exec(normalized);
@@ -239,66 +521,48 @@ const classifyVideo = (tokens: MutableFilenameToken[], evidence: MetadataEvidenc
 };
 
 const classifyHdr = (tokens: MutableFilenameToken[], evidence: MetadataEvidence[]): void => {
-  const hasDolbyVisionEvidence = tokens.some(
-    (token, index) =>
-      token.normalized === "DV" ||
-      token.normalized === "DOVI" ||
-      sequenceAt(tokens, index, ["DOLBY", "VISION"]),
-  );
+  let hasDv = false;
 
   for (let index = 0; index < tokens.length; index += 1) {
     const normalized = tokens[index]?.normalized ?? "";
-    if (normalized === "DV" || normalized === "DOVI") {
-      add(evidence, tokens, [index], "dolby-vision", "dolbyVision", true, "Dolby Vision explícito");
-    } else if (sequenceAt(tokens, index, ["DOLBY", "VISION"])) {
-      add(
-        evidence,
-        tokens,
-        indexesFrom(index, 2),
-        "dolby-vision",
-        "dolbyVision",
-        true,
-        "Dolby Vision explícito",
-      );
-      index += 1;
+    if (sequenceAt(tokens, index, ["DOLBY", "VISION"]) || normalized === "DV") {
+      hasDv = true;
+      const indexes = normalized === "DV" ? [index] : indexesFrom(index, 2);
+      add(evidence, tokens, indexes, "dolby-vision", "dolbyVision", true, "Dolby Vision explícito");
+      index += indexes.length - 1;
+      continue;
     }
 
-    if (normalized === "HDR10+" || normalized === "HDR10PLUS") {
+    if (normalized === "HDR10PLUS" || normalized === "HDR10+") {
       add(evidence, tokens, [index], "hdr", "hdrFormat", "HDR10+", "HDR10+ explícito");
-    } else if (normalized === "HDR10") {
-      add(evidence, tokens, [index], "hdr", "hdrFormat", "HDR10", "HDR10 explícito");
-    } else if (normalized === "HDR") {
-      add(evidence, tokens, [index], "hdr", "hdrFormat", "HDR", "HDR genérico: no implica HDR10");
+      continue;
     }
 
-    const compactProfile = /^(?:PROFILE|P)(\d+(?:\.\d+)?)$/u.exec(normalized);
-    if (hasDolbyVisionEvidence && compactProfile?.[1] !== undefined) {
-      add(
-        evidence,
-        tokens,
-        [index],
-        "dolby-vision-profile",
-        "dolbyVisionProfile",
-        compactProfile[1],
-        "Perfil Dolby Vision explícito",
-      );
-    } else if (
-      hasDolbyVisionEvidence &&
-      normalized === "PROFILE" &&
-      /^\d+(?:\.\d+)?$/u.test(tokens[index + 1]?.normalized ?? "")
-    ) {
-      const profile = tokens[index + 1]?.raw;
-      if (profile !== undefined) {
+    if (normalized === "HDR10") {
+      add(evidence, tokens, [index], "hdr", "hdrFormat", "HDR10", "HDR10 explícito");
+      continue;
+    }
+
+    if (normalized === "HDR") {
+      add(evidence, tokens, [index], "hdr", "hdrFormat", "HDR", "HDR genérico");
+    }
+  }
+
+  // Profile classification only if Dolby Vision is present
+  if (hasDv) {
+    for (let index = 0; index < tokens.length; index += 1) {
+      const normalized = tokens[index]?.normalized ?? "";
+      const compactProfile = /^(?:PROFILE|P)(\d+(?:\.\d+)?)$/u.exec(normalized);
+      if (compactProfile?.[1] !== undefined) {
         add(
           evidence,
           tokens,
-          indexesFrom(index, 2),
+          [index],
           "dolby-vision-profile",
           "dolbyVisionProfile",
-          profile,
+          compactProfile[1],
           "Perfil Dolby Vision explícito",
         );
-        index += 1;
       }
     }
   }
@@ -381,6 +645,8 @@ const classifyAudio = (tokens: MutableFilenameToken[], evidence: MetadataEvidenc
       add(evidence, tokens, [index], "audio-codec", "audioCodec", "AAC", "Códec AAC explícito");
     } else if (normalized === "FLAC") {
       add(evidence, tokens, [index], "audio-codec", "audioCodec", "FLAC", "Códec FLAC explícito");
+    } else if (normalized === "MP3") {
+      classify(tokens, [index], "audio-codec");
     }
 
     const ddpChannels = /^DDP(\d\.\d)$/u.exec(normalized);
@@ -431,18 +697,56 @@ const classifyLanguages = (
   evidence: MetadataEvidence[],
   metadataZoneStart: number,
 ): void => {
-  const languages: ReadonlyMap<string, string> = new Map([
+  const unambiguousLanguages: ReadonlyMap<string, string> = new Map([
+    ["CASTELLANO", "ES"],
+    ["SPANISH", "ES"],
+    ["ESPANOL", "ES"],
+    ["LATINO", "LAT"],
+    ["ENGLISH", "EN"],
+    ["INGLES", "EN"],
+    ["GALLEGO", "GAL"],
+    ["CATALAN", "CAT"],
+    ["EUSKERA", "EUS"],
+    ["FRENCH", "FR"],
+    ["FRANCES", "FR"],
+    ["GERMAN", "DE"],
+    ["ALEMAN", "DE"],
+    ["ITALIAN", "IT"],
+    ["ITALIANO", "IT"],
+    ["JAPANESE", "JA"],
+    ["JAPONES", "JA"],
+  ]);
+
+  const shortLanguages: ReadonlyMap<string, string> = new Map([
     ["ES", "ES"],
     ["SPA", "ES"],
+    ["ESP", "ES"],
+    ["LAT", "LAT"],
     ["EN", "EN"],
     ["ENG", "EN"],
     ["GAL", "GAL"],
     ["GLG", "GAL"],
+    ["CAT", "CAT"],
+    ["EUS", "EUS"],
+    ["FR", "FR"],
+    ["FRA", "FR"],
+    ["FRE", "FR"],
+    ["DEU", "DE"],
+    ["GER", "DE"],
+    ["ITA", "IT"],
+    ["JPN", "JA"],
   ]);
 
-  for (let index = Math.max(metadataZoneStart, 0); index < tokens.length; index += 1) {
+  for (let index = 0; index < tokens.length; index += 1) {
     const normalized = tokens[index]?.normalized ?? "";
-    if (normalized === "MULTI") {
+
+    if (
+      normalized === "MULTI" ||
+      normalized === "DUAL" ||
+      normalized === "VOSE" ||
+      normalized === "VOS" ||
+      normalized === "TRIPAUDIO"
+    ) {
       add(
         evidence,
         tokens,
@@ -450,21 +754,23 @@ const classifyLanguages = (
         "language-marker",
         "multipleAudioLanguages",
         true,
-        "MULTi indica pluralidad, no idiomas concretos",
+        "Indicador de idiomas múltiple",
       );
       continue;
     }
 
-    if (normalized === "SUB") {
-      const language = languages.get(tokens[index + 1]?.normalized ?? "");
-      if (language !== undefined) {
+    if (normalized === "SUB" || normalized === "SUBS") {
+      const targetLang =
+        unambiguousLanguages.get(tokens[index + 1]?.normalized ?? "") ??
+        shortLanguages.get(tokens[index + 1]?.normalized ?? "");
+      if (targetLang !== undefined) {
         add(
           evidence,
           tokens,
           indexesFrom(index, 2),
           "subtitle-language",
           "subtitleLanguage",
-          language,
+          targetLang,
           "Idioma de subtítulo explícito",
         );
         index += 1;
@@ -472,34 +778,102 @@ const classifyLanguages = (
       continue;
     }
 
-    const compactSubtitle = /^SUB(ES|SPA|EN|ENG|GAL|GLG)$/u.exec(normalized);
-    if (compactSubtitle?.[1] !== undefined) {
-      const language = languages.get(compactSubtitle[1]);
-      if (language !== undefined) {
+    const compactSub = /^SUB(ES|SPA|ESP|EN|ENG|GAL|CAT|FR|DE|IT|JA)$/u.exec(normalized);
+    if (compactSub?.[1] !== undefined) {
+      const targetLang = shortLanguages.get(compactSub[1]);
+      if (targetLang !== undefined) {
         add(
           evidence,
           tokens,
           [index],
           "subtitle-language",
           "subtitleLanguage",
-          language,
+          targetLang,
           "Idioma de subtítulo explícito",
         );
       }
       continue;
     }
 
-    const language = languages.get(normalized);
-    if (language !== undefined && tokens[index]?.categories.size === 0) {
+    // Unambiguous language names (like "Castellano", "Spanish") can match anywhere if not part of title
+    const fullLang = unambiguousLanguages.get(normalized);
+    if (fullLang !== undefined && (tokens[index]?.categories.size ?? 0) === 0) {
       add(
         evidence,
         tokens,
         [index],
         "audio-language",
         "audioLanguage",
-        language,
+        fullLang,
         "Idioma de audio explícito",
       );
+      continue;
+    }
+
+    // Short 2-3 letter language codes (like "ES", "EN", "ESP", "DEU") ONLY match in the metadata zone
+    // to avoid colliding with title words like "de", "la", "el", "en"
+    if (index >= metadataZoneStart) {
+      const shortLang = shortLanguages.get(normalized);
+      if (shortLang !== undefined && (tokens[index]?.categories.size ?? 0) === 0) {
+        add(
+          evidence,
+          tokens,
+          [index],
+          "audio-language",
+          "audioLanguage",
+          shortLang,
+          "Idioma de audio explícito",
+        );
+      }
+    }
+  }
+};
+
+const classifyContainersAndNoise = (tokens: MutableFilenameToken[]): void => {
+  const containerNames = new Set([
+    "MKV",
+    "AVI",
+    "MP4",
+    "M4V",
+    "MOV",
+    "WMV",
+    "FLV",
+    "WEBM",
+    "TS",
+    "M2TS",
+    "ISO",
+    "VOB",
+    "RIP",
+  ]);
+
+  for (const [index, token] of tokens.entries()) {
+    const norm = token.normalized;
+    if (containerNames.has(norm)) {
+      classify(tokens, [index], "container");
+    }
+
+    // Website domains & release site tokens: www, com, net, org, es, descargas2020, nucleohd, etc.
+    if (
+      norm === "WWW" ||
+      norm === "COM" ||
+      norm === "NET" ||
+      norm === "ORG" ||
+      norm === "INFO" ||
+      norm === "DESCARGAS2020" ||
+      norm === "NUCLEOHD" ||
+      norm === "MEJORTORRENT" ||
+      norm === "ELITETORRENT" ||
+      norm === "DIVXATOPE" ||
+      norm === "DONTORRENT" ||
+      norm === "ESTRENOSDIVX" ||
+      norm === "GRANSTORRENT" ||
+      norm === "PROPER" ||
+      norm === "REPACK" ||
+      norm.includes(".COM") ||
+      norm.includes(".ES") ||
+      norm.includes(".NET")
+    ) {
+      classify(tokens, [index], "website-noise");
     }
   }
 };
@@ -535,7 +909,9 @@ const classifyReleaseGroup = (
 
 const firstMetadataIndex = (tokens: readonly MutableFilenameToken[]): number => {
   const index = tokens.findIndex((token) =>
-    [...token.categories].some((category) => category !== "edition"),
+    [...token.categories].some(
+      (category) => category !== "edition" && category !== "title" && category !== "website-noise",
+    ),
   );
   return index < 0 ? tokens.length : index;
 };
@@ -543,12 +919,14 @@ const firstMetadataIndex = (tokens: readonly MutableFilenameToken[]): number => 
 export const applyFilenameRules = (tokenized: TokenizedFilename): ClassifiedFilename => {
   const evidence: MetadataEvidence[] = [];
   const year = classifyYearsAndResolutions(tokenized.tokens, evidence);
+  classifyEpisodes(tokenized.tokens, evidence);
   classifyEditions(tokenized.tokens, evidence);
   classifySources(tokenized.tokens, evidence);
   classifyVideo(tokenized.tokens, evidence);
   classifyHdr(tokenized.tokens, evidence);
   classifyAudio(tokenized.tokens, evidence);
   classifyLanguages(tokenized.tokens, evidence, firstMetadataIndex(tokenized.tokens));
+  classifyContainersAndNoise(tokenized.tokens);
   const releaseGroup = classifyReleaseGroup(tokenized, evidence);
 
   return {

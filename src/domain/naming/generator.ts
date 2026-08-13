@@ -104,7 +104,19 @@ const compactUnique = (values: readonly (string | undefined)[]): string[] => {
   return result;
 };
 
-const normalizedLanguage = (language: string): string => language.trim().toUpperCase();
+const toLanguageCode = (language: string): string => {
+  const upper = language.trim().toUpperCase();
+  if (["SPA", "ESP", "CAST", "ES", "CASTELLANO"].includes(upper)) return "ES";
+  if (["ENG", "EN", "INGLES"].includes(upper)) return "EN";
+  if (["GLG", "GAL", "GALLEGO"].includes(upper)) return "GAL";
+  if (["CAT", "CA", "CATALAN"].includes(upper)) return "CAT";
+  if (["FRA", "FRE", "FR", "FRANCES"].includes(upper)) return "FR";
+  if (["DEU", "GER", "DE", "ALEMAN"].includes(upper)) return "DE";
+  if (["ITA", "IT", "ITALIANO"].includes(upper)) return "IT";
+  if (["POR", "PT", "PORTUGUES"].includes(upper)) return "PT";
+  if (["JPN", "JA", "JAPONES"].includes(upper)) return "JA";
+  return upper;
+};
 
 const renderNamingTemplate = (
   template: string | undefined,
@@ -143,12 +155,12 @@ const tagsByKind = (
   audioCodec: compactUnique([input.audioCodec]),
   spatialAudio: compactUnique([input.spatialAudio]),
   channels: compactUnique([input.channels]),
-  audioLanguage: compactUnique((input.audioLanguages ?? []).map(normalizedLanguage)),
+  audioLanguage: compactUnique((input.audioLanguages ?? []).map(toLanguageCode)),
   subtitleLanguage: compactUnique(
     (input.subtitleLanguages ?? [])
-      .map(normalizedLanguage)
+      .map(toLanguageCode)
       .filter((language) => language.length > 0)
-      .map((language) => `SUB ${language}`),
+      .map((language) => `subs ${language}`),
   ),
   edition: compactUnique(input.editions ?? []),
   identifier:
