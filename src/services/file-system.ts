@@ -280,6 +280,7 @@ export async function openFilesPicker(): Promise<PickedFile[] | null> {
 
 export async function renameDirectInDirectory(
   items: RenamerItem[],
+  dirHandle?: FileSystemDirectoryHandle | null,
   onProgress?: (index: number, total: number, itemName: string) => void,
 ): Promise<{ succeeded: number; failed: number; errors: string[] }> {
   let succeeded = 0;
@@ -293,25 +294,75 @@ export async function renameDirectInDirectory(
     onProgress?.(i + 1, items.length, item.originalName);
 
     try {
+      let renamed = false;
       const handle = item.fileHandle;
-      if (handle) {
-        await verifyPermission(handle, true);
-        if (
-          "move" in handle &&
-          typeof (handle as unknown as { move: unknown }).move === "function"
-        ) {
-          await (handle as unknown as { move: (newName: string) => Promise<void> }).move(
-            item.suggestedName,
-          );
+
+      // Method 1: direct fileHandle.move(newName) or fileHandle.move(dirHandle, newName)
+      if (
+        handle &&
+        "move" in handle &&
+        typeof (handle as unknown as { move: unknown }).move === "function"
+      ) {
+        try {
+          await verifyPermission(handle, true);
+          if (dirHandle) {
+            await (
+              handle as unknown as {
+                move: (dir: FileSystemDirectoryHandle, name: string) => Promise<void>;
+              }
+            ).move(dirHandle, item.suggestedName);
+          } else {
+            await (handle as unknown as { move: (name: string) => Promise<void> }).move(
+              item.suggestedName,
+            );
+          }
+          renamed = true;
           succeeded++;
-        } else {
-          throw new Error(
-            `El navegador no soporta el método directo .move() en este archivo. Usa el script .bat.`,
-          );
+        } catch (moveErr) {
+          console.warn("Direct fileHandle.move failed, trying directory methods:", moveErr);
         }
-      } else {
+      }
+
+      // Method 2: using parent directory handle with move
+      if (!renamed && dirHandle) {
+        await verifyPermission(dirHandle, true);
+        try {
+          const entry = await dirHandle.getFileHandle(item.originalName);
+          if (
+            "move" in entry &&
+            typeof (entry as unknown as { move: unknown }).move === "function"
+          ) {
+            await (entry as unknown as { move: (name: string) => Promise<void> }).move(
+              item.suggestedName,
+            );
+            renamed = true;
+            succeeded++;
+          }
+        } catch (dirMoveErr) {
+          console.warn("Directory handle.move failed, trying copy-and-remove:", dirMoveErr);
+        }
+      }
+
+      // Method 3: standard createWritable + removeEntry fallback (works everywhere in Chromium)
+      if (!renamed && dirHandle) {
+        try {
+          const sourceHandle = await dirHandle.getFileHandle(item.originalName);
+          const sourceFile = await sourceHandle.getFile();
+          const targetHandle = await dirHandle.getFileHandle(item.suggestedName, { create: true });
+          const writable = await targetHandle.createWritable();
+          await writable.write(sourceFile);
+          await writable.close();
+          await dirHandle.removeEntry(item.originalName);
+          renamed = true;
+          succeeded++;
+        } catch (copyErr) {
+          console.warn("Copy-and-remove fallback failed:", copyErr);
+        }
+      }
+
+      if (!renamed) {
         throw new Error(
-          `No se dispone de handle con permiso de escritura para ${item.originalName}`,
+          `No se pudo renombrar directamente en este navegador. Mueve el script .bat a la carpeta de los archivos y ejecútalo.`,
         );
       }
     } catch (err) {
@@ -334,9 +385,14 @@ export function generateBatchScript(items: RenamerItem[], format: "bat" | "ps1" 
     const lines = [
       "@echo off",
       "chcp 65001 > nul",
-      "echo =========================================",
+      'cd /d "%~dp0"',
+      "echo =========================================================================",
       "echo  Renombrador Inteligente - Batch Rename",
-      "echo =========================================",
+      "echo =========================================================================",
+      "echo  Carpeta de trabajo: %CD%",
+      "echo.",
+      "echo  [IMPORTANTE] Este script renombra los archivos en la carpeta donde esta guardado.",
+      "echo =========================================================================",
       "echo.",
     ];
     for (const item of selected) {
@@ -355,8 +411,10 @@ export function generateBatchScript(items: RenamerItem[], format: "bat" | "ps1" 
     const lines = [
       "# Renombrador Inteligente - PowerShell Script",
       "$OutputEncoding = [System.Text.Encoding]::UTF8",
+      "Set-Location -Path $PSScriptRoot",
       "Write-Host '=========================================' -ForegroundColor Cyan",
       "Write-Host ' Renombrador Inteligente - PowerShell' -ForegroundColor Cyan",
+      'Write-Host " Carpeta de trabajo: $PWD" -ForegroundColor Cyan',
       "Write-Host '=========================================' -ForegroundColor Cyan",
       "",
     ];

@@ -348,7 +348,9 @@ export function RenamerScreen() {
     const script = generateBatchScript(items, format);
     const filename = `renombrar_archivos.${format}`;
     downloadTextFile(filename, script);
-    showNotification(`Script "${filename}" descargado.`);
+    showNotification(
+      `Script "${filename}" descargado. Muévelo a la carpeta donde están tus películas/series y ejecútalo allí.`,
+    );
   };
 
   const handleDirectRename = async () => {
@@ -360,14 +362,16 @@ export function RenamerScreen() {
     }
 
     let itemsWithHandles = itemsToRename.filter((i) => i.fileHandle !== undefined);
+    let activeDirHandle = currentDirHandle;
 
-    // If handles are missing, ask for the folder and immediately proceed
-    if (itemsWithHandles.length === 0) {
+    // If handles or dir handle are missing, ask for the folder and immediately proceed
+    if (itemsWithHandles.length === 0 || !activeDirHandle) {
       try {
         const result = await openDirectoryPicker();
         if (!result) return;
 
         if (result.directoryHandle) {
+          activeDirHandle = result.directoryHandle;
           setCurrentDirHandle(result.directoryHandle);
         }
 
@@ -400,17 +404,21 @@ export function RenamerScreen() {
     }
 
     // Verify permission on directory handle if present
-    if (currentDirHandle) {
-      await verifyPermission(currentDirHandle, true);
+    if (activeDirHandle) {
+      await verifyPermission(activeDirHandle, true);
     }
 
     // Direct in-place rename execution
     setIsRenamingProgress(true);
     setProgressStatus({ current: 0, total: itemsWithHandles.length, name: "" });
 
-    const result = await renameDirectInDirectory(itemsWithHandles, (current, total, name) => {
-      setProgressStatus({ current, total, name });
-    });
+    const result = await renameDirectInDirectory(
+      itemsWithHandles,
+      activeDirHandle,
+      (current, total, name) => {
+        setProgressStatus({ current, total, name });
+      },
+    );
 
     setIsRenamingProgress(false);
 
