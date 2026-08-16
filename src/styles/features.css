@@ -368,7 +368,7 @@
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
-  padding-top: 4px;
+  padding-top: 6px;
   border-top: 1px dashed var(--border-subtle);
 }
 
@@ -384,7 +384,7 @@
   gap: 4px;
   font-size: 11px;
   font-weight: 500;
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: var(--radius-full);
   border: 1px solid var(--border-subtle);
   background-color: var(--apple-surface);
@@ -397,6 +397,7 @@
 .tag-chip:hover {
   border-color: var(--text-secondary);
   color: var(--text-primary);
+  transform: translateY(-1px);
 }
 
 .tag-chip.active {
@@ -405,29 +406,190 @@
   border-color: var(--apple-blue);
 }
 
+/* Resolution (4K, 1080p, 720p) - Gold / Amber Glow */
+.tag-chip.active.kind-resolution {
+  background-color: rgba(245, 158, 11, 0.16);
+  color: #f59e0b;
+  border-color: #f59e0b;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* Release Type (REMUX) - Royal Purple */
+.tag-chip.active.kind-release-type {
+  background-color: rgba(168, 85, 247, 0.16);
+  color: #a855f7;
+  border-color: #a855f7;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* Media Source (Blu-ray, UHD Blu-ray, WEB-DL) - Indigo */
 .tag-chip.active.kind-source {
-  background-color: var(--apple-purple-subtle);
-  color: var(--apple-purple);
-  border-color: var(--apple-purple);
-}
-
-.tag-chip.active.kind-language {
-  background-color: var(--apple-green-subtle);
-  color: var(--apple-green);
-  border-color: var(--apple-green);
-}
-
-.tag-chip.active.kind-edition {
-  background-color: var(--apple-amber-subtle);
-  color: var(--apple-amber);
-  border-color: var(--apple-amber);
-}
-
-.tag-chip.active.kind-episode {
-  background-color: rgba(255, 59, 48, 0.12);
-  color: #ff3b30;
-  border-color: #ff3b30;
+  background-color: rgba(99, 102, 241, 0.16);
+  color: #818cf8;
+  border-color: #6366f1;
   font-weight: 600;
+}
+
+/* HDR & Dolby Vision - Crimson / Rose */
+.tag-chip.active.kind-hdr {
+  background-color: rgba(244, 63, 94, 0.16);
+  color: #fb7185;
+  border-color: #f43f5e;
+  font-weight: 600;
+}
+
+/* Video Codec (HEVC, H.264, AV1) - Emerald */
+.tag-chip.active.kind-video-codec {
+  background-color: rgba(16, 185, 129, 0.16);
+  color: #34d399;
+  border-color: #10b981;
+}
+
+/* Audio Codec & Spatial Audio (TrueHD, Atmos, DTS-HD MA) - Sky Blue */
+.tag-chip.active.kind-audio-codec,
+.tag-chip.active.kind-spatial-audio,
+.tag-chip.active.kind-channels {
+  background-color: rgba(2, 132, 199, 0.16);
+  color: #38bdf8;
+  border-color: #0284c7;
+}
+
+/* Language (ES, EN, subs ES) - Teal */
+.tag-chip.active.kind-language {
+  background-color: rgba(13, 148, 136, 0.16);
+  color: #2dd4bf;
+  border-color: #0d9488;
+}
+
+/* Editions (IMAX, Extended, Director's Cut) - Amber */
+.tag-chip.active.kind-edition {
+  background-color: rgba(234, 179, 8, 0.16);
+  color: #facc15;
+  border-color: #eab308;
+  font-weight: 600;
+}
+
+/* Episode (101, 204) - Coral Red */
+.tag-chip.active.kind-episode {
+  background-color: rgba(239, 68, 68, 0.16);
+  color: #f87171;
+  border-color: #ef4444;
+  font-weight: 700;
+}
+
+/* Quick Presets Section */
+.quick-presets-drawer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background-color: var(--apple-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin-top: 4px;
+  animation: fadeIn 120ms ease;
+}
+
+.quick-presets-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.quick-presets-group-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  min-width: 68px;
+}
+
+.preset-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-subtle);
+  background-color: var(--apple-card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 120ms ease;
+  user-select: none;
+}
+
+.preset-chip-btn:hover {
+  background-color: var(--apple-surface-hover);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+
+.preset-chip-btn.active {
+  background-color: var(--apple-blue-subtle);
+  color: var(--apple-blue);
+  border-color: var(--apple-blue);
+  font-weight: 600;
+}
+
+.preset-chip-btn.preset-4k {
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.4);
+}
+.preset-chip-btn.preset-4k:hover,
+.preset-chip-btn.preset-4k.active {
+  background-color: rgba(245, 158, 11, 0.16);
+  border-color: #f59e0b;
+}
+
+.preset-chip-btn.preset-remux {
+  color: #a855f7;
+  border-color: rgba(168, 85, 247, 0.4);
+}
+.preset-chip-btn.preset-remux:hover,
+.preset-chip-btn.preset-remux.active {
+  background-color: rgba(168, 85, 247, 0.16);
+  border-color: #a855f7;
+}
+
+.preset-chip-btn.preset-bluray {
+  color: #818cf8;
+  border-color: rgba(99, 102, 241, 0.4);
+}
+.preset-chip-btn.preset-bluray:hover,
+.preset-chip-btn.preset-bluray.active {
+  background-color: rgba(99, 102, 241, 0.16);
+  border-color: #6366f1;
+}
+
+/* Global Batch Presets Ribbon */
+.batch-presets-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background-color: var(--apple-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.batch-presets-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 /* Inline Edit Field */
@@ -515,4 +677,285 @@
 
 .spin {
   animation: spin 1s linear infinite;
+}
+
+/* ── Tarjeta de archivo ───────────────────────────────────────────────── */
+
+.item-alerts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+}
+
+.item-alerts li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.alert-error {
+  color: var(--apple-red);
+}
+
+.alert-warning {
+  color: var(--apple-amber);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ── Cabecera, progreso y avisos ──────────────────────────────────────── */
+
+.progress-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--apple-blue);
+}
+
+.progress-track {
+  width: 100%;
+  height: 6px;
+  background-color: var(--apple-surface);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: var(--apple-blue);
+  transition: width 150ms ease;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.toast {
+  position: fixed;
+  bottom: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background-color: var(--apple-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-md);
+  font-size: 13px;
+  z-index: 60;
+}
+
+.provider-attribution {
+  margin-top: 24px;
+  font-size: 11px;
+  color: var(--text-tertiary);
+  text-align: center;
+}
+
+.dropzone-warning {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--apple-amber);
+}
+
+/* ── Panel de configuración ───────────────────────────────────────────── */
+
+.settings-panel {
+  display: grid;
+  gap: 20px;
+  padding: 20px;
+  margin-bottom: 20px;
+  background-color: var(--apple-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-panel h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.settings-field input,
+.settings-field select,
+.settings-field textarea {
+  background-color: var(--apple-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 6px 8px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.settings-hint {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-bottom: 10px;
+}
+
+.settings-warning {
+  font-size: 11px;
+  color: var(--apple-amber);
+  margin-bottom: 10px;
+}
+
+.proposed-name-input {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  background-color: var(--apple-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+.proposed-name-input:focus {
+  outline: 2px solid var(--apple-blue);
+  outline-offset: 1px;
+  border-color: var(--apple-blue);
+}
+
+.list-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.item-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px;
+  background-color: var(--apple-surface);
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.item-fields label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.item-fields select {
+  background-color: var(--apple-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 5px 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.item-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  background-color: var(--apple-surface);
+  border-radius: var(--radius-md);
+}
+
+.item-search > .inline-edit-input {
+  flex: 1;
+  min-width: 200px;
+}
+
+.search-results {
+  flex-basis: 100%;
+  display: grid;
+  gap: 4px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.search-results button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 8px;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.search-results button:hover,
+.search-results button:focus-visible {
+  background-color: var(--apple-card-hover);
+  border-color: var(--border-strong);
+}
+
+.search-results img {
+  width: 32px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: var(--radius-xs);
+  flex-shrink: 0;
+}
+
+.search-results em {
+  color: var(--text-tertiary);
+  font-style: normal;
+}
+
+.search-empty {
+  flex-basis: 100%;
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.search-results button.is-applied {
+  border-color: var(--apple-green);
+  background-color: var(--apple-green-subtle);
 }

@@ -1,52 +1,55 @@
-# Verificación del hito 1
+# Verificación
 
-Fecha: 2026-08-02  
-Plataforma: Windows, Rust `1.97.1`, Node `24.14.0` del runtime local.
+Fecha: 2026-08-16
+Plataforma: Windows 11, Node 20+, pnpm 10.33.2, Vite 8.2.0, Vitest 4.1.10.
 
-## Verificación automatizada
+Sustituye a la versión anterior de este documento, que informaba de pruebas `cargo`, builds de Tauri
+e instaladores MSI/NSIS que no pueden ejecutarse en este repositorio: aquí no hay código Rust.
 
-| Comando                                                    | Resultado                                   |
-| ---------------------------------------------------------- | ------------------------------------------- |
-| `pnpm format:check`                                        | correcto                                    |
-| `pnpm lint`                                                | 0 errores y 0 avisos                        |
-| `pnpm test`                                                | 6 archivos, 32 pruebas TypeScript superadas |
-| `pnpm build`                                               | build Vite de producción correcto           |
-| `cargo fmt --all -- --check`                               | correcto                                    |
-| `cargo check --all-targets`                                | correcto                                    |
-| `cargo clippy --all-targets --all-features -- -D warnings` | correcto                                    |
-| `cargo test --all-targets`                                 | 35 pruebas Rust superadas                   |
-| `tauri build --no-bundle --ci`                             | ejecutable release generado correctamente   |
-| `tauri build --bundles msi,nsis --ci --no-sign`            | MSI y NSIS x64 generados correctamente      |
+## Comandos y resultados reales
 
-Las pruebas Rust de filesystem crean exclusivamente archivos dummy dentro de `tempfile::TempDir`. Cubren conflicto sin distinguir mayúsculas, rename, undo, fallo inyectado a mitad de lote y rollback.
+| Comando                            | Resultado                                   |
+| ---------------------------------- | ------------------------------------------- |
+| `npx tsc -b --force`               | 0 errores                                   |
+| `npx eslint . --max-warnings 0`    | 0 errores, 0 avisos                         |
+| `npx prettier --check .`           | correcto                                    |
+| `npx vitest run`                   | 17 archivos, 250 pruebas superadas          |
+| `npx vite build`                   | build de producción correcta (~7 s)         |
+| `npx vite preview` + petición HTTP | HTTP 200; `index.html` y bundle JS servidos |
 
-## QA interactivo
+Nota de entorno: en esta máquina `vite preview` responde en `http://[::1]:<puerto>` y no en
+`127.0.0.1`.
 
-La aplicación se ejecutó en modo demo contra el build local y se recorrieron estos flujos:
+## Qué cubren las pruebas
 
-1. Biblioteca con ocho películas, búsqueda, filtros y acceso a ficha.
-2. Importación de 84 filas simuladas con progreso por fases y render virtualizado.
-3. Selección de 75 propuestas seguras, exclusión automática de un conflicto y preflight.
-4. Confirmación explícita, ejecución del lote y actualización de estados.
-5. Historial con rutas anterior/nueva, confirmación de deshacer y bloqueo de un segundo undo.
-6. Ajustes y créditos TMDB con logotipo aprobado y aviso requerido.
-7. Arranque controlado del ejecutable release; permaneció activo y se cerró después de la comprobación.
+| Archivo                                   | Cobertura                                                                                                                                                                                                                              |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `domain/media/resolution.test.ts`         | 15 clases de resolución, crops cinematográficos (`3840×1608`, `1920×800`, `1280×536`), DCI 4K frente a UHD y contenido anamórfico                                                                                                      |
+| `domain/media/video.test.ts`              | códecs, profundidad de bits, SDR/HDR10/HDR10+/Dolby Vision/HLG, perfil y nivel de Dolby Vision, y que PQ por sí sola no implica HDR10                                                                                                  |
+| `domain/media/audio.test.ts`              | códecs (AC-3, E-AC-3, TrueHD, DTS, DTS-HD MA/HRA, AAC, FLAC, PCM, Opus), Atmos solo con JOC/16-ch/nombre comercial, DTS:X solo con XLL X, canales por layout, comentarios y audiodescripción                                           |
+| `domain/media/language.test.ts`           | ISO 639-1/2, `spa` ambiguo, `es-ES`, `es-419`, `es-MX`, y títulos de pista `Castellano`, `Español`, `Español Latino`, `Spanish`, `Director Commentary`                                                                                 |
+| `domain/media/source.test.ts`             | fuentes del nombre siempre `INFERRED` y tabla completa de `qualitySource`                                                                                                                                                              |
+| `domain/media/normalize.test.ts`          | ningún dato técnico procede del nombre; avisos de idioma y de pistas ausentes                                                                                                                                                          |
+| `domain/identification/hints.test.ts`     | título/año, años internos (`Blade Runner 2049`), ediciones, grupo de lanzamiento, `S01E03`, `S00E01`, `S01E01-E02`, `1x05`, `T03E12`, `Temporada 2 Capitulo 4`, `cap03` con carpeta                                                    |
+| `domain/naming/build.test.ts`             | los cinco formatos de referencia del encargo, bloques vacíos, sin castellano, solo castellano, idiomas repetidos, comentarios, `:` en el título, inyección de rutas, extensión preservada, ID oculto por defecto, series y los presets |
+| `services/rename/rename.test.ts`          | preflight (destino existente, duplicado en lote, solo mayúsculas, extensión, nombre reservado, longitud), renombrado real, TOCTOU, fallo parcial, cancelación, intercambio circular y deshacer con revalidación                        |
+| `services/file-system.test.ts`            | filtrado de contenedores de vídeo y extensión                                                                                                                                                                                          |
+| `services/rename-port.test.ts`            | regresión del renombrado: permiso de escritura solicitado, renombrado sin carpeta abierta, navegador sin `move()` y comprobación de destino con carpeta                                                                                |
+| `services/providers/tmdb.test.ts`         | localización `es-ES`/`ES`, auth v3 y v4, validación Zod, rechazo de URLs de imagen ajenas, 401/429/red, caché, título de episodio y modo sin clave                                                                                     |
+| `services/identification-service.test.ts` | autoaplicación solo con confianza alta, coincidencia ambigua no aplicada, remakes por año, puntuación explicable y error del proveedor no bloqueante                                                                                   |
 
-Capturas:
+Se conservan las pruebas heredadas de `domain/naming/parser.test.ts`,
+`domain/naming/windows-filename.test.ts`, `domain/metadata.test.ts` y
+`domain/matching/tmdb-score.test.ts`.
 
-- [Biblioteca premium](../output/playwright/library-premium.png)
-- [Importación y preflight](../output/playwright/import-premium.png)
-- [Ajustes y créditos](../output/playwright/settings-premium.png)
+Las pruebas de renombrado usan un sistema de archivos en memoria (`RenameFileSystemPort`): no crean
+ni modifican archivos reales.
 
-## Cobertura condicionada por el entorno
+## Qué NO está verificado automáticamente
 
-- `ffprobe` no estaba instalado en `PATH`: se verificaron detección ausente, validación de ruta y parsing mediante fixtures; no se ejecutó sobre un vídeo real.
-- No se proporcionó un token TMDB: se verificaron modo offline, mocks, scoring, contratos y protección del secreto; no se hizo una consulta viva.
-- Los instaladores MSI y NSIS se generaron sin firma de código. El warning de `__TAURI_BUNDLE_TYPE` afecta al plugin de actualización, que no forma parte de este hito; no impidió producir ambos paquetes.
-- El ejecutable release se recompiló después de retirar un botón inerte de la ficha. La regeneración posterior de los bundles quedó bloqueada al agotarse la autorización del host para ejecutar WiX/NSIS; los instaladores existentes corresponden al build inmediatamente anterior y el `.exe` suelto sí contiene la fuente final.
-
-## Artefactos Windows
-
-- `src-tauri/target/release/cinevault-desktop.exe`
-- `src-tauri/target/release/bundle/msi/CineVault_0.1.0_x64_en-US.msi`
-- `src-tauri/target/release/bundle/nsis/CineVault_0.1.0_x64-setup.exe`
+- Recorrido interactivo en un navegador real: selección de carpeta, concesión de permisos y `move()`
+  sobre disco. Requiere intervención humana con archivos propios.
+- Consulta viva a TMDb: el cliente se prueba con `fetch` simulado, no con una clave real.
+- Análisis de un MKV real con MediaInfo WASM: los normalizadores se prueban con fixtures que
+  reproducen la salida documentada de MediaInfo.
+- Rendimiento con bibliotecas de miles de archivos.

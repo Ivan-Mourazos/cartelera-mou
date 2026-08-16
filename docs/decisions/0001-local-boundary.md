@@ -1,6 +1,9 @@
 # ADR-0001: backend Rust como frontera de confianza local
 
-Estado: aceptada  
+> **OBSOLETA.** Este repositorio no contiene código Rust, Tauri, SQLite ni integración con ffprobe.
+> La decisión vigente es [ADR-0003](./0003-navegador-mediainfo-y-trazabilidad.md).
+
+Estado: obsoleta (2026-08-16)  
 Fecha: 2026-08-02
 
 ## Contexto

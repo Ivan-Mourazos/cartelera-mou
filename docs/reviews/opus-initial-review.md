@@ -1,3 +1,11 @@
+> [!CAUTION]
+> **DOCUMENTO OBSOLETO E INCORRECTO — no usar como referencia.**
+> Este informe describe una aplicación Tauri 2 + Rust + SQLite + ffprobe («CineVault») que **no
+> existe en este repositorio**: no hay ningún `Cargo.toml`, `.rs`, `.sql`, `tauri.conf.json` ni
+> carpeta `src-tauri/`. Las pruebas `cargo test` que afirma haber ejecutado no son reproducibles.
+> El proyecto real es una SPA de navegador (Vite + React + mediainfo.js WASM).
+> Auditoría vigente: [`2026-08-16-auditoria-web.md`](./2026-08-16-auditoria-web.md).
+
 # Informe de Revisión Técnica Inicial — CineVault MVP
 
 **Fecha:** 5 de agosto de 2026  

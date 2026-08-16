@@ -2,7 +2,7 @@ export type MetadataOrigin = "filename" | "ffprobe" | "tmdb" | "user";
 
 export type EvidenceStrength = "explicit" | "derived" | "inferred";
 
-export type Resolution = "4320p" | "2160p" | "1440p" | "1080p" | "720p" | "576p" | "480p";
+export type Resolution = "4K" | "4320p" | "2160p" | "1440p" | "1080p" | "720p" | "576p" | "480p";
 
 export type MediaSource = "UHD Blu-ray" | "Blu-ray" | "WEB-DL" | "WEBRip" | "HDTV" | "DVD";
 

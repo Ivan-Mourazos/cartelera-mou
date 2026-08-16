@@ -1,116 +1,143 @@
-# CineVault
+# Renombrador Inteligente
 
-CineVault es una aplicación de escritorio local-first para Windows que cataloga películas, inspecciona sus pistas con `ffprobe`, propone nombres auditables y solo modifica archivos después de un preflight y una confirmación explícita.
+Aplicación **web** para analizar archivos de vídeo, identificar la obra y proponer un nombre de
+archivo consistente y profesional. Se ejecuta íntegramente en el navegador: no hay servidor, no se
+sube ningún archivo a ningún sitio y el vídeo nunca sale del equipo.
 
-El hito actual implementa una vertical real con Tauri 2, React, TypeScript estricto, Rust y SQLite. Nube, reproducción, remux y transcodificación quedan fuera de alcance por diseño.
+> Nota: hasta el 16 de agosto de 2026 la documentación describía una aplicación de escritorio
+> «CineVault» con Tauri 2, Rust, SQLite y ffprobe. **Ese código no existe en este repositorio.** Los
+> documentos afectados están corregidos o marcados como obsoletos.
 
-## Funciones incluidas
+## Qué hace
 
-- Escaneo recursivo de formatos de vídeo compatibles con progreso por fases.
-- Parser determinista y generador con una característica por corchete.
-- Análisis JSON de `ffprobe`, tolerante a datos incompletos.
-- Búsqueda TMDB desacoplada, puntuación explicable y modo demo sin credencial.
-- Previsualización y edición del nombre antes de cualquier cambio.
-- Preflight de duplicados, caracteres Windows, extensiones, rutas y destinos existentes.
-- Renombrado en dos fases sin overwrite, journal durable, rollback y recuperación al arrancar.
-- Historial SQLite y deshacer con revalidación del archivo.
-- Biblioteca local, ficha técnica y ajustes de análisis/nomenclatura/apariencia.
-- Interfaz oscura minimalista en negro carbón, con componentes accesibles y lista virtualizada.
+1. Carga archivos de vídeo (MKV, MP4, M4V, AVI…): elígelos, arrástralos o abre una carpeta.
+2. Lee las **cabeceras reales** del contenedor con [MediaInfo](https://mediaarea.net/) compilado a
+   WebAssembly: resolución, códec, profundidad de bits, HDR, Dolby Vision, pistas de audio y
+   subtítulos, idiomas y banderas.
+3. Identifica la película, la serie o el episodio consultando TMDb con localización española
+   (`language=es-ES`, `region=ES`) para obtener el **título oficial usado en España**.
+4. Muestra el nombre actual y el propuesto, editable directamente.
+5. Renombra en disco con un botón, y permite deshacer.
 
-## Arquitectura
+## Principio: exactitud por encima de cantidad
 
-React nunca recibe acceso genérico al filesystem, SQLite, HTTP o procesos. La única excepción de plugin es el selector nativo de carpetas. Los comandos Rust vuelven a validar todas las mutaciones y mantienen la base de datos, `ffprobe`, TMDB y el journal detrás de una frontera IPC tipada.
+Cada dato lleva su confianza y su procedencia:
 
-Consulta [architecture.md](docs/architecture.md), [roadmap.md](docs/roadmap.md) y el [registro de decisiones](docs/decisions/README.md).
+| Confianza        | Significado                                            |
+| ---------------- | ------------------------------------------------------ |
+| `CONFIRMED`      | Leído del fichero o devuelto por el proveedor          |
+| `INFERRED`       | Deducido del nombre original o de la carpeta           |
+| `USER_CONFIRMED` | Corregido a mano; gana siempre                         |
+| `UNKNOWN`        | No se puede determinar; **no se escribe en el nombre** |
+
+Consecuencias prácticas:
+
+- La resolución, el códec, la profundidad de bits, el HDR, Atmos y DTS:X **solo** salen del stream.
+  Que el nombre diga `2160p.DV.Atmos` no cuenta como prueba de nada.
+- La fuente (`UHD Blu-ray`, `WEB-DL`, `REMUX`…) no puede confirmarse técnicamente: se extrae del
+  nombre y queda marcada como inferida, nunca como confirmada.
+- `spa` no es castellano. Sin una subetiqueta de región (`es-ES`, `es-419`) o un título de pista
+  explícito, el idioma se muestra como «Español — región desconocida» y no se escribe `ESP`.
+
+## Formato del nombre
 
 ```text
-.
-├── branding.json              # fuente única del nombre y textos de marca
-├── docs/                      # arquitectura, diseño, roadmap y ADR
-├── public/                    # marca y atribución TMDB
-├── scripts/                   # sincronización de branding
-├── src/
-│   ├── app/                   # composición y navegación
-│   ├── components/            # componentes accesibles compartidos
-│   ├── domain/                # parser, naming, matching y contratos futuros
-│   ├── features/              # Biblioteca, Importar, Historial y Ajustes
-│   ├── services/              # gateway Tauri, gateway demo y validación Zod
-│   └── styles/                # tokens y sistema visual
-└── src-tauri/
-    ├── capabilities/          # ACL mínima de la ventana principal
-    ├── migrations/            # esquema SQLite versionado
-    ├── src/                   # comandos, DB, ffprobe, TMDB, scan y rename
-    └── icons/                 # recursos nativos de Windows
+Título España (Año) [CALIDAD/FUENTE · CÓDEC/BITS · HDR] [AUDIO PRINCIPAL · Otros idiomas].ext
 ```
 
-## Requisitos de desarrollo
+Ejemplos reales generados por las pruebas:
 
-- Windows 10 u 11 con WebView2.
-- Visual Studio Build Tools con “Desarrollo para el escritorio con C++” y Windows SDK.
-- Rust estable mediante `rustup`.
-- Node.js 24 LTS y pnpm 11.9.0.
-- `ffprobe` en `PATH` o una ruta configurada en Ajustes. El MVP no lo distribuye todavía.
-- Token de lectura de TMDB opcional. Sin él, la aplicación local y el modo demo siguen funcionando.
-
-## Instalar y ejecutar
-
-```powershell
-corepack enable
-corepack prepare pnpm@11.9.0 --activate
-pnpm install --frozen-lockfile
-pnpm desktop:dev
+```text
+Dune Parte Dos (2024) [4K UHD REMUX · HEVC 10-bit · Dolby Vision + HDR10] [ESP TrueHD Atmos 7.1 · Otros ENG+FRA].mkv
+Heat (1995) [Full HD REMUX · AVC 8-bit] [ESP DTS-HD MA 5.1 · Otros ENG].mkv
+The Batman (2022) [4K UHD WEB-DL · HEVC 10-bit · Dolby Vision] [ESP Dolby Digital Plus 5.1 · Otros ENG].mkv
+Alien (1979) [4K UHD · HEVC 10-bit · HDR10] [ESP DTS-HD MA 5.1 · Otros ENG].mkv
+The Last of Us (2023) - S01E03 - Mucho mucho tiempo [4K UHD WEB-DL · HEVC 10-bit · Dolby Vision] [ESP Dolby Digital Plus 5.1 · Otros ENG].mkv
 ```
 
-Para revisar solo la interfaz con datos de prueba:
+La calidad se presenta en clases legibles (`8K UHD`, `4K UHD`, `DCI 4K`, `QHD`, `Full HD`, `HD`,
+`SD`) calculadas por dimensiones, no por la altura: un UHD recortado a `3840×1608` sigue siendo
+`4K UHD`.
+
+**Separador de idiomas:** la especificación pedía `/`, pero la barra es un separador de rutas y en
+Windows es un carácter prohibido en nombres de archivo. Se usa `+`, que es legal en todos los
+sistemas; el separador es configurable desde el dominio (`languageSeparator`).
+
+## Presets
+
+`Profesional` (por defecto), `Compacto`, `Media server` (Plex/Jellyfin/Emby), `Técnico` y
+`Personalizado` con plantillas libres. Tokens disponibles: `{title}`, `{originalTitle}`, `{year}`,
+`{episode}`, `{episodeTitle}`, `{quality}`, `{source}`, `{qualitySource}`, `{videoCodec}`,
+`{bitDepth}`, `{videoCodecBitDepth}`, `{hdr}`, `{hdrShort}`, `{exactResolution}`, `{frameRate}`,
+`{container}`, `{edition}`, `{primaryAudio}`, `{primaryAudioShort}`, `{otherLanguages}`,
+`{otherLanguagesShort}`, `{subtitleLanguages}`, `{providerIdTag}`, `{providerIdBrace}`.
+
+## Seguridad del renombrado
+
+- El análisis **nunca** renombra: hay que pulsar el botón.
+- Preflight completo: caracteres y nombres reservados de Windows, longitud, extensión preservada,
+  duplicados dentro del lote, destino ya existente y cambios de solo mayúsculas.
+- Solo se usa `FileSystemFileHandle.move()`. **No se copia y borra**: eso podría destruir el archivo
+  de destino y duplicar decenas de gigabytes.
+- Con una carpeta abierta, antes de cada movimiento se revalida que el destino siga libre. Con
+  archivos sueltos el navegador no deja listar la carpeta, así que esa comprobación no es posible y
+  la aplicación lo advierte.
+- Un fallo individual no detiene el lote y se informa por archivo.
+- Registro persistente y deshacer del último lote, con revalidación completa.
+
+## Requisitos
+
+- Navegador basado en Chromium (Chrome, Edge, Brave…): la File System Access API con `move()` no
+  está disponible en Firefox ni Safari. En esos navegadores se puede analizar y ver los nombres
+  propuestos, pero no renombrar.
+- Node.js 20+ y pnpm.
+
+## Puesta en marcha
 
 ```powershell
+pnpm install
 pnpm dev
 ```
 
-La credencial puede introducirse en Ajustes y permanece únicamente en memoria durante la sesión. Como alternativa de desarrollo, puede heredarse desde la consola antes de iniciar Tauri:
+Verificación completa:
 
 ```powershell
-$env:TMDB_READ_ACCESS_TOKEN = "tu_read_access_token"
-pnpm desktop:dev
+pnpm check   # format:check + lint + test + build
 ```
 
-No uses un prefijo `VITE_`: expondría la variable al WebView.
+## TMDb
 
-## Verificar
+La aplicación funciona sin clave: en ese caso el título y el año se deducen del nombre y quedan
+marcados como inferidos. Para obtener títulos oficiales españoles, introduce una clave v3 o un token
+de lectura v4 en **Configuración**.
 
-```powershell
-pnpm check
+Al ser una aplicación de navegador sin backend, **la clave se guarda en este equipo y viaja en las
+peticiones**: no hay forma de ocultarla. No uses una clave compartida ni la introduzcas en un
+ordenador ajeno. `.env.example` no contiene secretos.
 
-Set-Location src-tauri
-cargo fmt --all -- --check
-cargo check --all-targets
-cargo clippy --all-targets --all-features -- -D warnings
-cargo test --all-targets
+Este producto usa la API de TMDb, pero no está avalado ni certificado por TMDb.
+
+## Estructura
+
+```text
+src/
+├── app/            # shell y branding
+├── domain/         # lógica pura, sin React ni navegador
+│   ├── identification/  # pistas del nombre, modelo de identificación
+│   ├── matching/        # puntuación auditable de candidatos
+│   ├── media/           # modelo normalizado, trazabilidad y normalizadores
+│   └── naming/          # plantillas, presets, construcción y reglas de Windows
+├── features/renamer/    # interfaz y estado de la pantalla
+├── services/
+│   ├── analysis/        # cliente MediaInfo WASM y cola con concurrencia
+│   ├── providers/       # contrato de proveedor y cliente TMDb
+│   └── rename/          # preflight, ejecución, deshacer y registro
+└── styles/
 ```
 
-Para generar instaladores Windows:
+## Límites conocidos
 
-```powershell
-pnpm desktop:build
-```
-
-Los artefactos se crean en `src-tauri/target/release/bundle/msi/` y `src-tauri/target/release/bundle/nsis/`.
-
-## Configuración local
-
-`.env.example` documenta los nombres admitidos, pero no contiene secretos. La ruta de `ffprobe`, las preferencias y la configuración no secreta se guardan localmente. El token TMDB no se persiste en SQLite ni se devuelve al frontend.
-
-La base de datos vive en el directorio de datos de la aplicación, separada de los vídeos. Las pruebas destructivas usan únicamente directorios temporales y archivos dummy.
-
-## Estado y límites conocidos
-
-- No se incluye todavía un binario `ffprobe`; debe instalarse y validarse desde Ajustes.
-- La credencial TMDB es de sesión hasta integrar Windows Credential Manager.
-- Sin una credencial real no se puede verificar una consulta viva a TMDB; el cliente, contratos y modo offline sí están implementados.
-- El escaneo no consulta TMDB en lote: la búsqueda y la autoaplicación de confianza alta se inician al revisar un archivo.
-- El scoring TMDB real previo a elegir usa título localizado/original, similitud, año y ambigüedad; duración, títulos alternativos y aprendizaje de correcciones quedan para el siguiente endurecimiento.
-- El recorrido y `ffprobe` son secuenciales y el preflight prioriza seguridad sobre rendimiento; antes de validar bibliotecas de miles de archivos debe añadirse concurrencia acotada e indexación por directorio.
-- No hay almacenamiento remoto, streaming, reproducción, remux ni transcodificación.
-- Firma de código, instalador firmado, actualizaciones y caché local de imágenes pertenecen al hito 1.1.
-
-Los resultados reproducibles de esta entrega están en [testing.md](docs/testing.md).
+- Sin clave de TMDb no hay títulos oficiales españoles.
+- El renombrado directo depende de `FileSystemFileHandle.move()`, hoy solo en Chromium.
+- No hay biblioteca persistente, nube, streaming, remux ni transcodificación: la herramienta
+  **analiza y renombra**, y no toca el contenido de los archivos.

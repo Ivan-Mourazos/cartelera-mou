@@ -20,7 +20,7 @@ describe("parseMediaFilename", () => {
     expect(parsed.originalStem).toBe(original.slice(0, -4));
     expect(parsed.probableTitle).toBe("Dune Part Two");
     expect(parsed.year).toBe(2024);
-    expect(valuesFor(parsed, "resolution")).toEqual(["2160p"]);
+    expect(valuesFor(parsed, "resolution")).toEqual(["4K"]);
     expect(valuesFor(parsed, "mediaSource")).toEqual(["UHD Blu-ray"]);
     expect(valuesFor(parsed, "releaseType")).toEqual(["REMUX"]);
     expect(valuesFor(parsed, "dolbyVision")).toEqual([true]);
@@ -119,5 +119,21 @@ describe("parseMediaFilename", () => {
     expect(parsed.probableTitle).toBe("Movie");
     expect(valuesFor(parsed, "edition")).toEqual(["Extended"]);
     expect(parsed.unclassifiedTokens).not.toContain("Edition");
+  });
+
+  it("recognizes 4K, FHD and BDREMUX correctly", () => {
+    const parsed = parseMediaFilename("Gladiator.2000.4K.HDR.BDREMUX.Atmos.mkv");
+
+    expect(parsed.probableTitle).toBe("Gladiator");
+    expect(parsed.year).toBe(2000);
+    expect(valuesFor(parsed, "resolution")).toEqual(["4K"]);
+    expect(valuesFor(parsed, "hdrFormat")).toEqual(["HDR"]);
+    expect(valuesFor(parsed, "mediaSource")).toEqual(["Blu-ray"]);
+    expect(valuesFor(parsed, "releaseType")).toEqual(["REMUX"]);
+    expect(valuesFor(parsed, "spatialAudio")).toEqual(["Atmos"]);
+
+    const parsedFHD = parseMediaFilename("Avatar.2009.FHD.Blu-ray.mkv");
+    expect(valuesFor(parsedFHD, "resolution")).toEqual(["1080p"]);
+    expect(valuesFor(parsedFHD, "mediaSource")).toEqual(["Blu-ray"]);
   });
 });

@@ -58,7 +58,7 @@ const classifyYearsAndResolutions = (
 ): number | undefined => {
   let year: number | undefined;
   const currentMaxYear = new Date().getFullYear() + 2;
-  const resolutions = new Set(["4320P", "2160P", "1440P", "1080P", "720P", "576P", "480P"]);
+  const otherResolutions = new Set(["4320P", "1440P", "576P", "480P"]);
 
   // Collect candidate 4-digit years
   const yearCandidates: { index: number; year: number }[] = [];
@@ -96,7 +96,42 @@ const classifyYearsAndResolutions = (
       continue;
     }
 
-    if (resolutions.has(token.normalized)) {
+    if (
+      token.normalized === "4K" ||
+      token.normalized === "2160P" ||
+      token.normalized === "4KUHD" ||
+      token.normalized === "4K-UHD" ||
+      token.normalized === "UHD4K"
+    ) {
+      add(evidence, tokens, [index], "resolution", "resolution", "4K", "Resolución 4K / Ultra HD");
+      continue;
+    }
+
+    if (
+      token.normalized === "1080P" ||
+      token.normalized === "1080I" ||
+      token.normalized === "FHD" ||
+      token.normalized === "FULLHD" ||
+      token.normalized === "FULL-HD"
+    ) {
+      add(
+        evidence,
+        tokens,
+        [index],
+        "resolution",
+        "resolution",
+        "1080p",
+        "Resolución 1080p Full HD",
+      );
+      continue;
+    }
+
+    if (token.normalized === "720P" || token.normalized === "720I") {
+      add(evidence, tokens, [index], "resolution", "resolution", "720p", "Resolución 720p HD");
+      continue;
+    }
+
+    if (otherResolutions.has(token.normalized)) {
       add(
         evidence,
         tokens,
@@ -105,19 +140,6 @@ const classifyYearsAndResolutions = (
         "resolution",
         token.raw.toLowerCase() as Resolution,
         "Resolución estándar en píxeles verticales",
-      );
-      continue;
-    }
-
-    if (token.normalized === "4K") {
-      add(
-        evidence,
-        tokens,
-        [index],
-        "resolution",
-        "resolution",
-        "2160p",
-        "4K mapeado canónicamente a 2160p",
       );
     }
   }
@@ -378,17 +400,29 @@ const classifySources = (tokens: MutableFilenameToken[], evidence: MetadataEvide
   for (let index = 0; index < tokens.length; index += 1) {
     const normalized = tokens[index]?.normalized ?? "";
 
-    if (sequenceAt(tokens, index, ["UHD", "BLURAY"])) {
+    if (
+      sequenceAt(tokens, index, ["4K", "UHD", "BLURAY"]) ||
+      sequenceAt(tokens, index, ["4K", "UHD", "BLU", "RAY"]) ||
+      sequenceAt(tokens, index, ["4K", "BLURAY"]) ||
+      sequenceAt(tokens, index, ["4K", "BLU", "RAY"]) ||
+      sequenceAt(tokens, index, ["UHD", "BLURAY"])
+    ) {
+      const len = sequenceAt(tokens, index, ["4K", "UHD", "BLU", "RAY"])
+        ? 4
+        : sequenceAt(tokens, index, ["4K", "UHD", "BLURAY"]) ||
+            sequenceAt(tokens, index, ["4K", "BLU", "RAY"])
+          ? 3
+          : 2;
       add(
         evidence,
         tokens,
-        indexesFrom(index, 2),
+        indexesFrom(index, len),
         "source",
         "mediaSource",
         "UHD Blu-ray",
         "Fuente UHD Blu-ray explícita",
       );
-      index += 1;
+      index += len - 1;
     } else if (sequenceAt(tokens, index, ["UHD", "BLU", "RAY"])) {
       add(
         evidence,
@@ -403,6 +437,7 @@ const classifySources = (tokens: MutableFilenameToken[], evidence: MetadataEvide
     } else if (
       normalized === "BLURAY" ||
       normalized === "BLU-RAY" ||
+      normalized === "BD" ||
       sequenceAt(tokens, index, ["BLU", "RAY"])
     ) {
       const len = sequenceAt(tokens, index, ["BLU", "RAY"]) ? 2 : 1;
@@ -432,6 +467,28 @@ const classifySources = (tokens: MutableFilenameToken[], evidence: MetadataEvide
       }
     } else if (normalized === "BRRIP" || normalized === "BDRIP") {
       add(evidence, tokens, [index], "source", "mediaSource", "Blu-ray", "Fuente BDRip/BRRip");
+    } else if (normalized === "BDREMUX" || normalized === "BD-REMUX") {
+      add(
+        evidence,
+        tokens,
+        [index],
+        "source",
+        "mediaSource",
+        "Blu-ray",
+        "Fuente Blu-ray en BDREMUX",
+      );
+      add(evidence, tokens, [index], "release-type", "releaseType", "REMUX", "REMUX explícito");
+    } else if (normalized === "UHDREMUX" || normalized === "4KREMUX") {
+      add(
+        evidence,
+        tokens,
+        [index],
+        "source",
+        "mediaSource",
+        "UHD Blu-ray",
+        "Fuente UHD Blu-ray en UHDREMUX",
+      );
+      add(evidence, tokens, [index], "release-type", "releaseType", "REMUX", "REMUX explícito");
     } else if (normalized === "WEBDL" || sequenceAt(tokens, index, ["WEB", "DL"])) {
       const indexes = normalized === "WEBDL" ? [index] : indexesFrom(index, 2);
       add(evidence, tokens, indexes, "source", "mediaSource", "WEB-DL", "Fuente WEB-DL explícita");

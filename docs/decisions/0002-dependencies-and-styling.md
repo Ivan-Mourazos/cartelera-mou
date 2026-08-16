@@ -1,6 +1,11 @@
 # ADR-0002: dependencias mínimas y CSS con tokens propios
 
-Estado: aceptada  
+> **PARCIALMENTE OBSOLETA.** La decisión sobre CSS con tokens propios sigue vigente. No así la parte
+> de plataforma: no hay API de Tauri ni plugin de diálogo, y `@tanstack/react-virtual` figura como
+> dependencia pero no se usa (la lista todavía no está virtualizada). Ver
+> [ADR-0003](./0003-navegador-mediainfo-y-trazabilidad.md).
+
+Estado: parcialmente obsoleta (2026-08-16)  
 Fecha: 2026-08-02
 
 ## Contexto
