@@ -80,7 +80,7 @@ describe("generación del nombre — películas", () => {
         2024,
       ),
     ).toBe(
-      "Dune Parte Dos (2024) [4K UHD REMUX · HEVC 10-bit · Dolby Vision + HDR10] [Castellano TrueHD Atmos 7.1 · Otros ENG+FRA].mkv",
+      "Dune Parte Dos (2024) [4K 2160p BluRay REMUX HEVC 10bit DV] [Castellano TrueHD Atmos 7.1 · ENG+FRA].mkv",
     );
   });
 
@@ -107,7 +107,7 @@ describe("generación del nombre — películas", () => {
 
     const name = nameOf("Heat.1995.1080p.BluRay.REMUX.AVC.mkv", media, "Heat", 1995);
     expect(name).toBe(
-      "Heat (1995) [Full HD REMUX · AVC 8-bit] [Castellano DTS-HD MA 5.1 · Otros ENG].mkv",
+      "Heat (1995) [Full HD 1080p BluRay REMUX AVC] [Castellano DTS-HD MA 5.1 · ENG].mkv",
     );
     expect(name).not.toContain("··");
     expect(name).not.toContain("[]");
@@ -135,9 +135,7 @@ describe("generación del nombre — películas", () => {
 
     expect(
       nameOf("The.Batman.2022.2160p.WEB-DL.DDP5.1.Atmos.DV.mkv", media, "The Batman", 2022),
-    ).toBe(
-      "The Batman (2022) [4K UHD WEB-DL · HEVC 10-bit · Dolby Vision] [Castellano Dolby Digital Plus 5.1 · Otros ENG].mkv",
-    );
+    ).toBe("The Batman (2022) [4K 2160p WEB-DL HEVC 10bit DV] [Castellano DD+ 5.1 · ENG].mkv");
   });
 
   it("sin fuente conocida el bloque solo lleva la calidad", () => {
@@ -162,7 +160,7 @@ describe("generación del nombre — películas", () => {
     });
 
     expect(nameOf("Alien.1979.2160p.HEVC.mkv", media, "Alien", 1979)).toBe(
-      "Alien (1979) [4K UHD · HEVC 10-bit · HDR10] [Castellano DTS-HD MA 5.1 · Otros ENG].mkv",
+      "Alien (1979) [4K 2160p HEVC 10bit HDR10] [Castellano DTS-HD MA 5.1 · ENG].mkv",
     );
   });
 
@@ -181,7 +179,7 @@ describe("generación del nombre — películas", () => {
     });
 
     expect(nameOf("Pelicula.2020.1080p.BluRay.mkv", media, "Película", 2020)).toBe(
-      "Película (2020) [Full HD Blu-ray · AVC 8-bit] [Castellano DTS-HD MA 5.1].mkv",
+      "Película (2020) [Full HD 1080p BluRay AVC] [Castellano DTS-HD MA 5.1].mkv",
     );
   });
 
@@ -210,7 +208,7 @@ describe("generación del nombre — películas", () => {
       media,
     );
     expect(result.filename).toBe(
-      "Film (2020) [Full HD WEB-DL · AVC 8-bit] [Inglés TrueHD Atmos 7.1 · Otros FRA+ITA].mkv",
+      "Film (2020) [Full HD 1080p WEB-DL AVC] [Inglés TrueHD Atmos 7.1 · FRA+ITA].mkv",
     );
     expect(result.alerts).toContain("No se ha detectado audio en castellano.");
   });
@@ -250,7 +248,7 @@ describe("generación del nombre — películas", () => {
     });
 
     const name = nameOf("Film.2020.1080p.BluRay.mkv", media, "Film", 2020);
-    expect(name).toContain("Otros ENG]");
+    expect(name).toContain("· ENG]");
     expect(name).not.toContain("ENG/ENG");
     expect(name).not.toContain("DEU");
   });
@@ -272,7 +270,7 @@ describe("generación del nombre — películas", () => {
       identified("Film.2020.1080p.BluRay.mkv", { spanishTitle: "Film", year: 2020 }),
       media,
     );
-    expect(result.filename).toContain("[Español Dolby Digital 5.1]");
+    expect(result.filename).toContain("[Español DD 5.1]");
     expect(result.filename).not.toContain("ESP");
     expect(result.alerts.some((alert) => alert.includes("región determinable"))).toBe(true);
   });
@@ -397,7 +395,7 @@ describe("generación del nombre — series", () => {
     });
 
     expect(buildMediaName(identification, seriesMedia(filename)).filename).toBe(
-      "The Last of Us (2023) - S01E03 - Mucho mucho tiempo [4K UHD WEB-DL · HEVC 10-bit · Dolby Vision] [Castellano Dolby Digital Plus 5.1 · Otros ENG].mkv",
+      "The Last of Us (2023) - S01E03 - Mucho mucho tiempo [4K 2160p WEB-DL HEVC 10bit DV] [Castellano DD+ 5.1 · ENG].mkv",
     );
   });
 
@@ -467,7 +465,7 @@ describe("presets", () => {
   it("compacto abrevia HDR, audio e idiomas", () => {
     expect(buildMediaName(identification, media, { presetId: "compact" }).filename).toBe(
       // El preset compacto es el único que usa códigos cortos en la pista principal.
-      "Dune Parte Dos (2024) [4K UHD REMUX · DV] [ESP Atmos 7.1 · ENG+FRA].mkv",
+      "Dune Parte Dos (2024) [2160p BluRay REMUX] [ESP TrueHD Atmos 7.1].mkv",
     );
   });
 
@@ -489,7 +487,7 @@ describe("presets", () => {
     const name = buildMediaName(identification, media, {
       movieTemplate: "{title} [{year}] [{quality}]",
     }).filename;
-    expect(name).toBe("Dune Parte Dos [2024] [4K UHD].mkv");
+    expect(name).toBe("Dune Parte Dos [2024] [4K].mkv");
   });
 });
 
@@ -514,9 +512,7 @@ describe("nombres que vienen con corchetes y datos incompletos", () => {
     const filename = "La Casa Del Dragon [4k 2160p][Cap.202](wolfmax4k.com).mkv";
     const name = buildMediaName(fromFilename(filename), media(filename)).filename;
 
-    expect(name).toBe(
-      "La Casa Del Dragon - S02E02 [4K UHD · HEVC 10-bit · Dolby Vision] [Español Dolby Digital Plus 5.1].mkv",
-    );
+    expect(name).toBe("La Casa Del Dragon - S02E02 [4K 2160p HEVC 10bit DV] [Español DD+ 5.1].mkv");
     expect(name).not.toContain("()");
     expect(name).not.toContain("- -");
     expect(name).not.toContain("[4k 2160p]");
@@ -526,9 +522,7 @@ describe("nombres que vienen con corchetes y datos incompletos", () => {
     const filename = "Serie [Cap.12].mkv";
     const name = buildMediaName(fromFilename(filename), media(filename)).filename;
 
-    expect(name).toBe(
-      "Serie [4K UHD · HEVC 10-bit · Dolby Vision] [Español Dolby Digital Plus 5.1].mkv",
-    );
+    expect(name).toBe("Serie [4K 2160p HEVC 10bit DV] [Español DD+ 5.1].mkv");
   });
 
   it("la fuente indicada a mano aparece junto a la calidad", () => {
@@ -542,7 +536,9 @@ describe("nombres que vienen con corchetes y datos incompletos", () => {
       },
     };
 
-    expect(buildMediaName(fromFilename(filename), forced).filename).toContain("[4K UHD REMUX ·");
+    expect(buildMediaName(fromFilename(filename), forced).filename).toContain(
+      "[4K 2160p BluRay REMUX",
+    );
   });
 });
 
@@ -578,7 +574,7 @@ describe("el idioma principal se escribe como en las publicaciones en español",
     const filename = "Peli.2020.1080p.mkv";
     const identification = identified(filename, { spanishTitle: "Peli", year: 2020 });
     expect(buildMediaName(identification, withAudio(filename, tag)).filename).toContain(
-      `[${expected} Dolby Digital Plus 5.1`,
+      `[${expected} DD+ 5.1`,
     );
   });
 
@@ -586,7 +582,133 @@ describe("el idioma principal se escribe como en las publicaciones en español",
     const filename = "Peli.2020.1080p.mkv";
     const identification = identified(filename, { spanishTitle: "Peli", year: 2020 });
     expect(buildMediaName(identification, withAudio(filename, "es-ES", true)).filename).toContain(
-      "· Otros ENG]",
+      "· ENG]",
     );
+  });
+});
+
+describe("nombres canónicos — contrato del formato", () => {
+  const canonical = (
+    filename: string,
+    title: string,
+    year: number,
+    parts: Parameters<typeof mediaFor>[1] = {},
+  ): string => nameOf(filename, mediaFor(filename, parts), title, year);
+
+  it("película 4K REMUX con Atmos y varios idiomas", () => {
+    expect(
+      canonical(
+        "Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.HEVC.DV-GRP.mkv",
+        "Dune Parte Dos",
+        2024,
+        {
+          video: [videoTrack({ HDR_Format: "Dolby Vision" })],
+          audio: [
+            audioTrack({ Language: "es-ES", Format_AdditionalFeatures: "16-ch" }),
+            audioTrack({
+              Language: "en",
+              Format: "AC-3",
+              Channels: 6,
+              ChannelLayout: "L R C LFE Ls Rs",
+            }),
+          ],
+        },
+      ),
+    ).toBe(
+      "Dune Parte Dos (2024) [4K 2160p BluRay REMUX HEVC 10bit DV] [Castellano TrueHD Atmos 7.1 · ENG].mkv",
+    );
+  });
+
+  it("serie HDTV en Full HD", () => {
+    expect(
+      canonical(
+        "El.Ministerio.del.Tiempo.Cap.308.1080p.HDTV.x264.mkv",
+        "El Ministerio del Tiempo",
+        2015,
+        {
+          video: [videoTrack({ Format: "AVC", Width: 1920, Height: 1080, BitDepth: 8 })],
+          audio: [
+            audioTrack({
+              Language: "es-ES",
+              Format: "AC-3",
+              Channels: 6,
+              ChannelLayout: "L R C LFE Ls Rs",
+            }),
+          ],
+        },
+      ),
+    ).toContain("[Full HD 1080p HDTV AVC] [Castellano DD 5.1]");
+  });
+
+  it("DVDRip en definición estándar", () => {
+    expect(
+      canonical("La.Cosa.1982.DVDRip.XviD.avi", "La Cosa", 1982, {
+        general: { "@type": "General", Format: "AVI" },
+        video: [videoTrack({ Format: "MPEG-4 Visual", Width: 720, Height: 480, BitDepth: 8 })],
+        audio: [
+          audioTrack({ Language: "es-ES", Format: "AC-3", Channels: 2, ChannelLayout: "L R" }),
+        ],
+      }),
+    ).toBe("La Cosa (1982) [SD 480p DVDRip MPEG-4] [Castellano DD 2.0].avi");
+  });
+
+  it("CamRip: la peor fuente también se escribe", () => {
+    expect(
+      canonical("Peli.2024.HDCAM.XviD.avi", "Peli", 2024, {
+        general: { "@type": "General", Format: "AVI" },
+        video: [videoTrack({ Format: "AVC", Width: 1280, Height: 720, BitDepth: 8 })],
+        audio: [
+          audioTrack({ Language: "es-ES", Format: "AC-3", Channels: 2, ChannelLayout: "L R" }),
+        ],
+      }),
+    ).toContain("[HD 720p CamRip AVC]");
+  });
+
+  it("nunca genera caracteres prohibidos en Windows", () => {
+    const name = canonical("Peli.2024.2160p.BluRay.REMUX.mkv", "Peli", 2024, {
+      audio: [
+        audioTrack({
+          Language: "es-ES",
+          Format: "DTS",
+          Format_Commercial_IfAny: "DTS-HD Master Audio",
+          Format_AdditionalFeatures: "XLL X",
+        }),
+      ],
+    });
+    expect(name).toContain("DTS-X");
+    expect(name).not.toMatch(/[<>:"/\\|?*]/u);
+  });
+
+  it("respeta el presupuesto de longitud por defecto", () => {
+    const filename = "Peli.2024.2160p.UHD.BluRay.REMUX.HEVC.DV.TrueHD.Atmos.mkv";
+    const media = mediaFor(filename, {
+      video: [videoTrack({ HDR_Format: "Dolby Vision" })],
+      audio: [
+        audioTrack({ Language: "es-ES", Format_AdditionalFeatures: "16-ch" }),
+        audioTrack({ Language: "en" }),
+        audioTrack({ Language: "fr" }),
+        audioTrack({ Language: "it" }),
+        audioTrack({ Language: "de" }),
+      ],
+    });
+    const name = nameOf(
+      filename,
+      media,
+      "El Señor de los Anillos El Retorno del Rey Versión Extendida",
+      2003,
+    );
+    expect(name.length).toBeLessThanOrEqual(120);
+  });
+
+  it("informa de lo que descartó por longitud", () => {
+    const filename = "Peli.2024.2160p.BluRay.REMUX.mkv";
+    const result = buildMediaName(
+      identified(filename, { spanishTitle: "Peli", year: 2024 }),
+      mediaFor(filename, {
+        audio: [audioTrack({ Language: "es-ES" }), audioTrack({ Language: "en" })],
+      }),
+      { targetLength: 45 },
+    );
+    expect(result.droppedTokens).toContain("otherLanguages");
   });
 });

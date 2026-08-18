@@ -47,3 +47,15 @@ describe("classifyResolution", () => {
     expect(classifyResolution(3840, 1608)?.reason).toContain("3840");
   });
 });
+
+describe("classifyResolution — etiqueta en píxeles dentro de la misma clase", () => {
+  it("distingue el DVD NTSC del PAL, que comparten anchura", () => {
+    expect(classifyResolution(720, 480)?.pixelLabel).toBe("480p");
+    expect(classifyResolution(720, 576)?.pixelLabel).toBe("576p");
+  });
+
+  it("un scope recortado conserva la etiqueta de su clase", () => {
+    expect(classifyResolution(1920, 800)?.pixelLabel).toBe("1080p");
+    expect(classifyResolution(3840, 1600)?.pixelLabel).toBe("2160p");
+  });
+});

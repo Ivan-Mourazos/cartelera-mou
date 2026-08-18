@@ -10,8 +10,9 @@ import {
 import { languageNameLabel } from "../media/language";
 import { isKnown, isUsableForName } from "../media/provenance";
 import { composeSourceLabel, describeSourceDetail } from "../media/source";
-import type { NormalizedMedia, QualityClass, VideoTrackInfo } from "../media/types";
-import { formatHdrForName } from "../media/video";
+import { applyNameBudget, type DroppableToken } from "./budget";
+import { bitDepthLabel, hdrLabel, videoCodecLabel } from "./release-labels";
+import type { NormalizedMedia, VideoTrackInfo } from "../media/types";
 import { findPreset, type NamePresetId } from "./presets";
 import { renderNameTemplate, type NameTokenValues } from "./template";
 import {
@@ -20,6 +21,12 @@ import {
   validateWindowsFilename,
   type WindowsFilenameValidation,
 } from "./windows-filename";
+
+/** Objetivo del producto: nombres legibles, no del ancho de la pantalla. */
+export const DEFAULT_TARGET_LENGTH = 120;
+
+/** Tope duro de Windows por componente de nombre, en unidades UTF-16. */
+const WINDOWS_COMPONENT_LIMIT = 255;
 
 export interface NameBuildOptions {
   readonly presetId?: NamePresetId;
@@ -32,6 +39,8 @@ export interface NameBuildOptions {
   /** Separador entre idiomas. `/` no es válido en un nombre de archivo. */
   readonly languageSeparator?: string;
   readonly parentPath?: string;
+  /** Longitud objetivo del nombre. Los topes de Windows son aparte y duros. */
+  readonly targetLength?: number;
 }
 
 export interface NameBuildResult {
@@ -44,16 +53,10 @@ export interface NameBuildResult {
   readonly warnings: readonly string[];
   /** Avisos de calidad de datos que la interfaz debe mostrar. */
   readonly alerts: readonly string[];
+  /** Bloques descartados para no superar el presupuesto de longitud. */
+  readonly droppedTokens: readonly DroppableToken[];
+  readonly truncatedTitle: boolean;
 }
-
-const HDR_SHORT: Readonly<Record<string, string>> = {
-  "Dolby Vision + HDR10+": "DV",
-  "Dolby Vision + HDR10": "DV",
-  "Dolby Vision": "DV",
-  "HDR10+": "HDR10+",
-  HDR10: "HDR10",
-  HLG: "HLG",
-};
 
 const formatFrameRate = (frameRate: number | undefined): string | undefined => {
   if (frameRate === undefined) return undefined;
@@ -61,40 +64,34 @@ const formatFrameRate = (frameRate: number | undefined): string | undefined => {
   return `${String(rounded)} fps`;
 };
 
-const videoTokens = (
-  video: VideoTrackInfo | undefined,
-): { tokens: NameTokenValues; quality: QualityClass | undefined } => {
-  if (video === undefined) return { tokens: {}, quality: undefined };
+const videoTokens = (video: VideoTrackInfo | undefined): NameTokenValues => {
+  if (video === undefined) return {};
 
   const tokens: NameTokenValues = {};
-  const resolution = isUsableForName(video.resolution) ? video.resolution.value : undefined;
+  const resolution = isUsableForName(video.resolution, { allowInferred: true })
+    ? video.resolution.value
+    : undefined;
   if (resolution !== undefined) {
     tokens.quality = resolution.quality;
+    tokens.resolutionLabel = resolution.pixelLabel;
     tokens.exactResolution = `${String(resolution.width)}×${String(resolution.height)}`;
   }
 
-  const codec = isUsableForName(video.codec) ? video.codec.value : undefined;
-  const bitDepth = isUsableForName(video.bitDepth) ? video.bitDepth.value : undefined;
+  const codec = isUsableForName(video.codec) ? videoCodecLabel(video.codec.value) : undefined;
   if (codec !== undefined) tokens.videoCodec = codec;
-  if (bitDepth !== undefined) tokens.bitDepth = `${String(bitDepth)}-bit`;
-  if (codec !== undefined) {
-    tokens.videoCodecBitDepth = bitDepth === undefined ? codec : `${codec} ${String(bitDepth)}-bit`;
-  }
 
-  const hdr = isUsableForName(video.hdrFormats)
-    ? formatHdrForName(video.hdrFormats.value)
-    : undefined;
-  if (hdr !== undefined) {
-    tokens.hdr = hdr;
-    tokens.hdrShort = HDR_SHORT[hdr] ?? hdr;
-  }
+  const bits = isUsableForName(video.bitDepth) ? bitDepthLabel(video.bitDepth.value) : undefined;
+  if (bits !== undefined) tokens.bitDepth = bits;
+
+  const hdr = isUsableForName(video.hdrFormats) ? hdrLabel(video.hdrFormats.value) : undefined;
+  if (hdr !== undefined) tokens.hdrShort = hdr;
 
   const frameRate = isUsableForName(video.frameRate)
     ? formatFrameRate(video.frameRate.value)
     : undefined;
   if (frameRate !== undefined) tokens.frameRate = frameRate;
 
-  return { tokens, quality: resolution?.quality };
+  return tokens;
 };
 
 const subtitleToken = (media: NormalizedMedia, separator: string): string | undefined => {
@@ -190,32 +187,26 @@ export const buildNameTokens = (
   const video = videoTokens(media.video[0]);
   const identity = identificationTokens(identification, options.includeProviderId ?? false);
 
-  const qualitySource = composeSourceLabel(media.source, {
-    allowInferred: allowInferredSource,
-  });
+  const sourceLabel = composeSourceLabel(media.source, { allowInferred: allowInferredSource });
 
   const separator = options.languageSeparator ?? DEFAULT_LANGUAGE_SEPARATOR;
   const sourceDetail = describeSourceDetail(media.source);
   const primaryAudio = formatPrimaryAudio(audio.primary);
   const primaryAudioShort = formatPrimaryAudio(audio.primary, { compact: true });
   const otherLanguages = formatOtherLanguages(audio.otherLanguages, { separator });
-  const otherLanguagesShort = formatOtherLanguages(audio.otherLanguages, {
-    compact: true,
-    separator,
-  });
   const subtitles =
     options.includeSubtitleLanguages === true ? subtitleToken(media, separator) : undefined;
   const container = media.general.container.value;
 
   const tokens: NameTokenValues = {
     ...identity,
-    ...video.tokens,
-    ...(qualitySource === undefined ? {} : { qualitySource }),
-    ...(sourceDetail === undefined ? {} : { source: sourceDetail }),
+    ...video,
+    ...(sourceLabel === undefined ? {} : { source: sourceLabel }),
     ...(primaryAudio === undefined ? {} : { primaryAudio }),
     ...(primaryAudioShort === undefined ? {} : { primaryAudioShort }),
-    ...(otherLanguages === undefined ? {} : { otherLanguages }),
-    ...(otherLanguagesShort === undefined ? {} : { otherLanguagesShort }),
+    ...(otherLanguages === undefined
+      ? {}
+      : { otherLanguages, otherLanguagesShort: otherLanguages }),
     ...(subtitles === undefined ? {} : { subtitleLanguages: subtitles }),
     ...(container === undefined ? {} : { container }),
   };
@@ -226,8 +217,10 @@ export const buildNameTokens = (
       "Hay audio en español sin región determinable: márcalo manualmente como castellano o latino.",
     );
   }
-  if (media.source.type.value === "REMUX" || media.source.media.value !== undefined) {
-    alerts.push(`Fuente inferida del nombre original (${sourceDetail ?? "sin detalle"}).`);
+  if (media.source.media.source === "DERIVED" && media.source.media.value !== undefined) {
+    alerts.push(
+      `Fuente deducida del bitrate: ${sourceDetail ?? media.source.media.value}. Confírmala si no es correcta.`,
+    );
   }
   if (tokens.quality === undefined) {
     alerts.push("No se pudo determinar la resolución real: el bloque de vídeo se omite.");
@@ -258,9 +251,15 @@ export const buildMediaName = (
       ? (options.episodeTemplate ?? preset.episodeTemplate)
       : (options.movieTemplate ?? preset.movieTemplate);
 
-  const renderedStem = renderNameTemplate(template, tokens);
-  const sanitizedStem = sanitizeWindowsFilenameComponent(renderedStem);
+  const render = (values: NameTokenValues): string => renderNameTemplate(template, values);
   const extension = media.general.extension.replace(/^\./u, "").toLowerCase();
+  const budget = applyNameBudget(tokens, render, {
+    targetLength: options.targetLength ?? DEFAULT_TARGET_LENGTH,
+    hardLimit: WINDOWS_COMPONENT_LIMIT,
+    extensionLength: extension.length === 0 ? 0 : extension.length + 1,
+  });
+
+  const sanitizedStem = sanitizeWindowsFilenameComponent(render(budget.tokens));
   const filename =
     extension.length === 0 ? sanitizedStem.value : `${sanitizedStem.value}.${extension}`;
 
@@ -273,14 +272,20 @@ export const buildMediaName = (
     ...validation.issues.map((issue) => issue.message),
   ];
 
+  const budgetAlerts = budget.truncatedTitle
+    ? ["El título se ha recortado para no superar el límite del sistema de archivos."]
+    : [];
+
   return {
     filename,
     stem: sanitizedStem.value,
     extension,
-    tokens,
+    tokens: budget.tokens,
     audio,
     validation,
     warnings,
-    alerts,
+    alerts: [...alerts, ...budgetAlerts],
+    droppedTokens: budget.dropped,
+    truncatedTitle: budget.truncatedTitle,
   };
 };

@@ -11,12 +11,7 @@ import type { NameTokenValues } from "./template";
  */
 
 export type DroppableToken =
-  | "otherLanguages"
-  | "bitDepth"
-  | "hdrShort"
-  | "videoCodec"
-  | "primaryAudioChannels"
-  | "quality";
+  "otherLanguages" | "bitDepth" | "hdrShort" | "videoCodec" | "primaryAudioChannels" | "quality";
 
 export const DROP_ORDER: readonly DroppableToken[] = [
   "otherLanguages",
@@ -51,9 +46,8 @@ const withoutToken = (tokens: NameTokenValues, token: DroppableToken): NameToken
     if (primary === undefined) return tokens;
     return { ...tokens, primaryAudio: primary.replace(CHANNELS_PATTERN, "") };
   }
-  const next = { ...tokens };
-  delete next[token];
-  return next;
+  // Reconstruir sin la clave evita `delete` sobre una clave calculada.
+  return Object.fromEntries(Object.entries(tokens).filter(([name]) => name !== token));
 };
 
 /**

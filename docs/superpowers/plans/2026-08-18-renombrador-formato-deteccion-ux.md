@@ -27,21 +27,21 @@
 
 **Se crean**
 
-| Archivo | Responsabilidad |
-| --- | --- |
-| `src/domain/naming/release-labels.ts` | Vocabulario único: clases comerciales, etiquetas de resolución, fuentes, códecs de vídeo y audio |
-| `src/domain/media/source-inference.ts` | Fuente deducida de bitrate, códec y resolución |
-| `src/domain/naming/budget.ts` | Recorte en cascada del nombre al presupuesto |
-| `src/domain/identification/embedded-ids.ts` | Identificadores IMDb/TMDb incrustados en el nombre |
-| `src/services/identification/resolver.ts` | Cascada de siete consultas y decisión película/serie |
-| `src/services/learned-corrections.ts` | Memoria persistente de correcciones manuales |
-| `src/features/renamer/row-model.ts` | Helpers puros de la lista: estado por fila, contadores, filtro, selección |
-| `src/features/renamer/FileRow.tsx` | Fila compacta |
-| `src/features/renamer/RowDetail.tsx` | Detalle desplegable |
-| `src/features/renamer/CandidateList.tsx` | Alternativas de TMDb |
-| `src/features/renamer/TechnicalSheet.tsx` | Ficha técnica con procedencia |
-| `src/features/renamer/BatchPreviewDialog.tsx` | Previsualización y confirmación del lote |
-| `src/features/renamer/ListToolbar.tsx` | Contadores-filtro, filtrado y acciones de lote |
+| Archivo                                       | Responsabilidad                                                                                  |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `src/domain/naming/release-labels.ts`         | Vocabulario único: clases comerciales, etiquetas de resolución, fuentes, códecs de vídeo y audio |
+| `src/domain/media/source-inference.ts`        | Fuente deducida de bitrate, códec y resolución                                                   |
+| `src/domain/naming/budget.ts`                 | Recorte en cascada del nombre al presupuesto                                                     |
+| `src/domain/identification/embedded-ids.ts`   | Identificadores IMDb/TMDb incrustados en el nombre                                               |
+| `src/services/identification/resolver.ts`     | Cascada de siete consultas y decisión película/serie                                             |
+| `src/services/learned-corrections.ts`         | Memoria persistente de correcciones manuales                                                     |
+| `src/features/renamer/row-model.ts`           | Helpers puros de la lista: estado por fila, contadores, filtro, selección                        |
+| `src/features/renamer/FileRow.tsx`            | Fila compacta                                                                                    |
+| `src/features/renamer/RowDetail.tsx`          | Detalle desplegable                                                                              |
+| `src/features/renamer/CandidateList.tsx`      | Alternativas de TMDb                                                                             |
+| `src/features/renamer/TechnicalSheet.tsx`     | Ficha técnica con procedencia                                                                    |
+| `src/features/renamer/BatchPreviewDialog.tsx` | Previsualización y confirmación del lote                                                         |
+| `src/features/renamer/ListToolbar.tsx`        | Contadores-filtro, filtrado y acciones de lote                                                   |
 
 **Se modifican**
 
@@ -58,10 +58,12 @@
 ### Task 1: Vocabulario de release
 
 **Files:**
+
 - Create: `src/domain/naming/release-labels.ts`
 - Test: `src/domain/naming/release-labels.test.ts`
 
 **Interfaces:**
+
 - Consumes: nada.
 - Produces:
   - `type CommercialClass = "8K" | "4K" | "2K" | "Full HD" | "HD" | "SD"`
@@ -233,11 +235,13 @@ git commit -m "feat(naming): add release label vocabulary"
 ### Task 2: Clases comerciales y resolución en píxeles
 
 **Files:**
+
 - Modify: `src/domain/media/types.ts` (tipo `QualityClass` y `ResolutionClassification`)
 - Modify: `src/domain/media/resolution.ts` (reescritura de las bandas)
 - Modify: `src/domain/media/resolution.test.ts`
 
 **Interfaces:**
+
 - Consumes: `CommercialClass`, `PixelLabel` de la Task 1.
 - Produces: `classifyResolution(width, height): ResolutionClassification | undefined`, donde
   `ResolutionClassification = { quality: CommercialClass; pixelLabel: PixelLabel; width: number; height: number; reason: string }`.
@@ -419,6 +423,7 @@ git commit -m "feat(media): classify resolution into commercial classes with pix
 ### Task 3: Vocabulario de fuente en el parser
 
 **Files:**
+
 - Modify: `src/domain/metadata.ts` (tipo `MediaSource`)
 - Modify: `src/domain/naming/rules.ts` (reglas de fuente)
 - Modify: `src/domain/media/types.ts` (`SourceMedia`)
@@ -426,6 +431,7 @@ git commit -m "feat(media): classify resolution into commercial classes with pix
 - Modify: `src/domain/media/source.test.ts`
 
 **Interfaces:**
+
 - Consumes: `ReleaseSource` de la Task 1.
 - Produces: `detectSourceFromFilename(filename: string): SourceInfo` reconociendo las 17 etiquetas; `SourceMedia = ReleaseSource` sin `REMUX` (que sigue viviendo en `SourceInfo.type`).
 
@@ -520,93 +526,93 @@ export type SourceMedia = Exclude<ReleaseSource, "BluRay REMUX">;
 En `src/domain/naming/rules.ts`, sustituye el bloque de clasificación de fuente (el `if/else if` que hoy empieza en `sequenceAt(tokens, index, ["4K", "UHD", "BLURAY"])` y termina en la rama `HDRIP`/`MICROHD`) por:
 
 ```ts
-    const simpleSources: Readonly<Record<string, MediaSource>> = {
-      BLURAY: "BluRay",
-      BLURAYRIP: "BDRip",
-      BDRIP: "BDRip",
-      BRRIP: "BRRip",
-      UHDRIP: "UHDRip",
-      WEBDL: "WEB-DL",
-      WEB: "WEB-DL",
-      WEBRIP: "WEBRip",
-      HDTV: "HDTV",
-      HDTVRIP: "HDTVRip",
-      MICROHD: "microHD",
-      HDRIP: "HDRip",
-      DVD: "DVDRip",
-      DVDRIP: "DVDRip",
-      DVDSCR: "DVDScr",
-      SCREENER: "SCR",
-      SCR: "SCR",
-      HDTC: "TC",
-      TC: "TC",
-      HDTS: "TS",
-      TS: "TS",
-      HDCAM: "CamRip",
-      CAMRIP: "CamRip",
-      CAM: "CamRip",
-    };
-    // Plataformas: prueban que el origen es WEB, pero no se escriben en el nombre.
-    const webPlatforms = new Set([
-      "AMZN",
-      "NF",
-      "NETFLIX",
-      "DSNP",
-      "MAX",
-      "HMAX",
-      "ATVP",
-      "HULU",
-      "SKST",
-      "MOVISTAR",
-    ]);
+const simpleSources: Readonly<Record<string, MediaSource>> = {
+  BLURAY: "BluRay",
+  BLURAYRIP: "BDRip",
+  BDRIP: "BDRip",
+  BRRIP: "BRRip",
+  UHDRIP: "UHDRip",
+  WEBDL: "WEB-DL",
+  WEB: "WEB-DL",
+  WEBRIP: "WEBRip",
+  HDTV: "HDTV",
+  HDTVRIP: "HDTVRip",
+  MICROHD: "microHD",
+  HDRIP: "HDRip",
+  DVD: "DVDRip",
+  DVDRIP: "DVDRip",
+  DVDSCR: "DVDScr",
+  SCREENER: "SCR",
+  SCR: "SCR",
+  HDTC: "TC",
+  TC: "TC",
+  HDTS: "TS",
+  TS: "TS",
+  HDCAM: "CamRip",
+  CAMRIP: "CamRip",
+  CAM: "CamRip",
+};
+// Plataformas: prueban que el origen es WEB, pero no se escriben en el nombre.
+const webPlatforms = new Set([
+  "AMZN",
+  "NF",
+  "NETFLIX",
+  "DSNP",
+  "MAX",
+  "HMAX",
+  "ATVP",
+  "HULU",
+  "SKST",
+  "MOVISTAR",
+]);
 
-    if (normalized === "REMUX") {
-      add(evidence, tokens, [index], "release-type", "releaseType", "REMUX", "REMUX explícito");
-    } else if (sequenceAt(tokens, index, ["WEB", "DL"])) {
-      add(
-        evidence,
-        tokens,
-        indexesFrom(index, 2),
-        "source",
-        "mediaSource",
-        "WEB-DL",
-        "Fuente WEB-DL explícita",
-      );
-    } else if (sequenceAt(tokens, index, ["WEB", "RIP"])) {
-      add(
-        evidence,
-        tokens,
-        indexesFrom(index, 2),
-        "source",
-        "mediaSource",
-        "WEBRip",
-        "Fuente WEBRip explícita",
-      );
-    } else if (webPlatforms.has(normalized)) {
-      add(
-        evidence,
-        tokens,
-        [index],
-        "source",
-        "mediaSource",
-        "WEB-DL",
-        `Plataforma de streaming «${tokens[index]?.raw ?? normalized}»: origen WEB`,
-        80,
-      );
-    } else {
-      const mapped = simpleSources[normalized];
-      if (mapped !== undefined) {
-        add(
-          evidence,
-          tokens,
-          [index],
-          "source",
-          "mediaSource",
-          mapped,
-          `Fuente ${mapped} explícita en el nombre`,
-        );
-      }
-    }
+if (normalized === "REMUX") {
+  add(evidence, tokens, [index], "release-type", "releaseType", "REMUX", "REMUX explícito");
+} else if (sequenceAt(tokens, index, ["WEB", "DL"])) {
+  add(
+    evidence,
+    tokens,
+    indexesFrom(index, 2),
+    "source",
+    "mediaSource",
+    "WEB-DL",
+    "Fuente WEB-DL explícita",
+  );
+} else if (sequenceAt(tokens, index, ["WEB", "RIP"])) {
+  add(
+    evidence,
+    tokens,
+    indexesFrom(index, 2),
+    "source",
+    "mediaSource",
+    "WEBRip",
+    "Fuente WEBRip explícita",
+  );
+} else if (webPlatforms.has(normalized)) {
+  add(
+    evidence,
+    tokens,
+    [index],
+    "source",
+    "mediaSource",
+    "WEB-DL",
+    `Plataforma de streaming «${tokens[index]?.raw ?? normalized}»: origen WEB`,
+    80,
+  );
+} else {
+  const mapped = simpleSources[normalized];
+  if (mapped !== undefined) {
+    add(
+      evidence,
+      tokens,
+      [index],
+      "source",
+      "mediaSource",
+      mapped,
+      `Fuente ${mapped} explícita en el nombre`,
+    );
+  }
+}
 ```
 
 Añade `import type { MediaSource } from "../metadata";` a los imports de `rules.ts` si no está.
@@ -614,7 +620,9 @@ Añade `import type { MediaSource } from "../metadata";` a los imports de `rules
 En `src/domain/media/source.ts`, sustituye `MEDIA_BY_EVIDENCE` por un paso directo, ya que los valores del parser y del dominio coinciden:
 
 ```ts
-const KNOWN_MEDIA = new Set<string>(ALL_RELEASE_SOURCES.filter((value) => value !== "BluRay REMUX"));
+const KNOWN_MEDIA = new Set<string>(
+  ALL_RELEASE_SOURCES.filter((value) => value !== "BluRay REMUX"),
+);
 
 const mediaFromEvidence = (value: string | undefined): SourceMedia | undefined =>
   value !== undefined && KNOWN_MEDIA.has(value) ? (value as SourceMedia) : undefined;
@@ -665,11 +673,13 @@ git commit -m "feat(naming): recognise the full release source vocabulary"
 ### Task 4: Inferencia de fuente por bitrate
 
 **Files:**
+
 - Create: `src/domain/media/source-inference.ts`
 - Create: `src/domain/media/source-inference.test.ts`
 - Modify: `src/domain/media/normalize.ts` (aplicar la inferencia cuando el nombre calla)
 
 **Interfaces:**
+
 - Consumes: `SourceMedia`, `Traced`, `ResolutionClassification`.
 - Produces: `inferSourceFromStream(input: StreamSourceInput): Traced<SourceMedia>` con
   `StreamSourceInput = { overallBitrateBps?: number; videoCodec?: VideoCodecName; pixelLabel?: PixelLabel }`.
@@ -916,6 +926,7 @@ git commit -m "feat(media): infer release source from bitrate, codec and resolut
 ### Task 5: Etiquetas de audio e idioma
 
 **Files:**
+
 - Modify: `src/domain/media/audio.ts` (`formatAudioCodecForName` delega en `audioCodecLabel`)
 - Modify: `src/domain/media/language.ts` (`otherLanguageLabel`)
 - Modify: `src/domain/media/audio-selection.ts` (bloque de audio con el vocabulario nuevo)
@@ -923,6 +934,7 @@ git commit -m "feat(media): infer release source from bitrate, codec and resolut
 - Modify: `src/domain/media/audio.test.ts`
 
 **Interfaces:**
+
 - Consumes: `audioCodecLabel` de la Task 1.
 - Produces: `formatPrimaryAudio(track, options?): string | undefined` que emite
   `Castellano TrueHD Atmos 7.1`; `formatOtherLanguages(labels, options?): string | undefined` que
@@ -1115,10 +1127,12 @@ git commit -m "feat(media): emit release-style audio and language labels"
 ### Task 6: Presupuesto de longitud y recorte en cascada
 
 **Files:**
+
 - Create: `src/domain/naming/budget.ts`
 - Create: `src/domain/naming/budget.test.ts`
 
 **Interfaces:**
+
 - Consumes: `NameTokenValues` de `template.ts`.
 - Produces: `applyNameBudget(tokens, render, options): { tokens: NameTokenValues; dropped: readonly NameTokenName[]; truncatedTitle: boolean }` con
   `options = { targetLength: number; hardLimit: number; extensionLength: number }`.
@@ -1241,12 +1255,7 @@ import type { NameTokenValues } from "./template";
  */
 
 export type DroppableToken =
-  | "otherLanguages"
-  | "bitDepth"
-  | "hdrShort"
-  | "videoCodec"
-  | "primaryAudioChannels"
-  | "quality";
+  "otherLanguages" | "bitDepth" | "hdrShort" | "videoCodec" | "primaryAudioChannels" | "quality";
 
 export const DROP_ORDER: readonly DroppableToken[] = [
   "otherLanguages",
@@ -1344,6 +1353,7 @@ git commit -m "feat(naming): add cascading name length budget"
 ### Task 7: Nombre final con vocabulario de release
 
 **Files:**
+
 - Modify: `src/domain/naming/template.ts` (token `resolutionLabel`, retirada de `qualitySource`)
 - Modify: `src/domain/naming/presets.ts` (plantillas nuevas)
 - Modify: `src/domain/naming/build.ts` (tokens, alertas y presupuesto)
@@ -1351,6 +1361,7 @@ git commit -m "feat(naming): add cascading name length budget"
 - Modify: `src/services/settings.ts` (`nameTargetLength`)
 
 **Interfaces:**
+
 - Consumes: Tasks 1–6.
 - Produces: `buildMediaName(identification, media, options): NameBuildResult` donde `NameBuildResult`
   gana `readonly droppedTokens: readonly DroppableToken[]` y `readonly truncatedTitle: boolean`;
@@ -1530,9 +1541,7 @@ const videoTokens = (video: VideoTrackInfo | undefined): NameTokenValues => {
   const codec = isUsableForName(video.codec) ? videoCodecLabel(video.codec.value) : undefined;
   if (codec !== undefined) tokens.videoCodec = codec;
 
-  const bits = isUsableForName(video.bitDepth)
-    ? bitDepthLabel(video.bitDepth.value)
-    : undefined;
+  const bits = isUsableForName(video.bitDepth) ? bitDepthLabel(video.bitDepth.value) : undefined;
   if (bits !== undefined) tokens.bitDepth = bits;
 
   const hdr = isUsableForName(video.hdrFormats) ? hdrLabel(video.hdrFormats.value) : undefined;
@@ -1551,30 +1560,30 @@ const videoTokens = (video: VideoTrackInfo | undefined): NameTokenValues => {
    que la Task 3 ya dejó lista:
 
 ```ts
-  const source = composeSourceLabel(media.source, { allowInferred: allowInferredSource });
+const source = composeSourceLabel(media.source, { allowInferred: allowInferredSource });
 ```
 
 3. Añade las alertas nuevas al final de `buildNameTokens`:
 
 ```ts
-  if (media.source.media.confidence === "INFERRED" && media.source.media.source === "DERIVED") {
-    alerts.push(`Fuente deducida del bitrate: ${media.source.media.value ?? "sin determinar"}.`);
-  }
+if (media.source.media.confidence === "INFERRED" && media.source.media.source === "DERIVED") {
+  alerts.push(`Fuente deducida del bitrate: ${media.source.media.value ?? "sin determinar"}.`);
+}
 ```
 
 4. En `buildMediaName`, aplica el presupuesto antes de sanear:
 
 ```ts
-  const render = (values: NameTokenValues): string => renderNameTemplate(template, values);
-  const extension = media.general.extension.replace(/^\./u, "").toLowerCase();
-  const budget = applyNameBudget(tokens, render, {
-    targetLength: options.targetLength ?? 120,
-    hardLimit: 255,
-    extensionLength: extension.length === 0 ? 0 : extension.length + 1,
-  });
+const render = (values: NameTokenValues): string => renderNameTemplate(template, values);
+const extension = media.general.extension.replace(/^\./u, "").toLowerCase();
+const budget = applyNameBudget(tokens, render, {
+  targetLength: options.targetLength ?? 120,
+  hardLimit: 255,
+  extensionLength: extension.length === 0 ? 0 : extension.length + 1,
+});
 
-  const renderedStem = render(budget.tokens);
-  const sanitizedStem = sanitizeWindowsFilenameComponent(renderedStem);
+const renderedStem = render(budget.tokens);
+const sanitizedStem = sanitizeWindowsFilenameComponent(renderedStem);
 ```
 
 y devuelve además `droppedTokens: budget.dropped` y `truncatedTitle: budget.truncatedTitle`,
@@ -1608,12 +1617,14 @@ git commit -m "feat(naming): build names with release-style quality and audio bl
 ### Task 8: Identificadores incrustados en el nombre
 
 **Files:**
+
 - Create: `src/domain/identification/embedded-ids.ts`
 - Create: `src/domain/identification/embedded-ids.test.ts`
 - Modify: `src/domain/identification/types.ts` (campo `embeddedId` en `IdentificationHints`)
 - Modify: `src/domain/identification/hints.ts` (extracción)
 
 **Interfaces:**
+
 - Consumes: nada.
 - Produces: `extractEmbeddedId(text: string): EmbeddedId | undefined` con
   `EmbeddedId = { provider: "imdb"; imdbId: string } | { provider: "tmdb"; tmdbId: number }`;
@@ -1740,11 +1751,13 @@ git commit -m "feat(identification): extract embedded IMDb and TMDb identifiers"
 ### Task 9: Ampliación del cliente de TMDb
 
 **Files:**
+
 - Modify: `src/services/providers/types.ts` (contrato ampliado)
 - Modify: `src/services/providers/tmdb.ts`
 - Modify: `src/services/providers/tmdb.test.ts`
 
 **Interfaces:**
+
 - Consumes: `EmbeddedId` de la Task 8.
 - Produces, añadidos a `MetadataProvider`:
   - `searchMulti(title: string, signal?: AbortSignal): Promise<readonly ProviderCandidate[]>` — cada candidato incluye `kind: WorkKind`.
@@ -1762,7 +1775,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTmdbProvider } from "./tmdb";
 
 const jsonResponse = (body: unknown): Response =>
-  new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
+  new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "content-type": "application/json" },
+  });
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -1940,140 +1956,138 @@ const seasonSchema = z.object({
 2. Añade el conversor común y los tres métodos dentro de `createTmdbProvider`:
 
 ```ts
-  const toCandidate = (raw: unknown, forcedKind?: WorkKind): ProviderCandidate | undefined => {
-    const parsed = multiResultSchema.safeParse(raw);
-    if (!parsed.success) return undefined;
-    const item = parsed.data;
-    const kind: WorkKind | undefined =
-      forcedKind ??
-      (item.media_type === "movie" ? "movie" : item.media_type === "tv" ? "series" : undefined);
-    if (kind === undefined) return undefined;
+const toCandidate = (raw: unknown, forcedKind?: WorkKind): ProviderCandidate | undefined => {
+  const parsed = multiResultSchema.safeParse(raw);
+  if (!parsed.success) return undefined;
+  const item = parsed.data;
+  const kind: WorkKind | undefined =
+    forcedKind ??
+    (item.media_type === "movie" ? "movie" : item.media_type === "tv" ? "series" : undefined);
+  if (kind === undefined) return undefined;
 
-    const title =
-      emptyToUndefined(item.title) ??
-      emptyToUndefined(item.name) ??
-      emptyToUndefined(item.original_title) ??
-      emptyToUndefined(item.original_name);
-    if (title === undefined) return undefined;
+  const title =
+    emptyToUndefined(item.title) ??
+    emptyToUndefined(item.name) ??
+    emptyToUndefined(item.original_title) ??
+    emptyToUndefined(item.original_name);
+  if (title === undefined) return undefined;
 
-    return {
-      id: item.id,
-      kind,
-      spanishTitle: title,
-      originalTitle: emptyToUndefined(item.original_title) ?? emptyToUndefined(item.original_name),
-      originalLanguage: emptyToUndefined(item.original_language),
-      year: yearOf(item.release_date ?? item.first_air_date),
-      runtimeMinutes: item.runtime,
-      posterUrl: posterUrl(item.poster_path),
-      overview: emptyToUndefined(item.overview),
-    };
+  return {
+    id: item.id,
+    kind,
+    spanishTitle: title,
+    originalTitle: emptyToUndefined(item.original_title) ?? emptyToUndefined(item.original_name),
+    originalLanguage: emptyToUndefined(item.original_language),
+    year: yearOf(item.release_date ?? item.first_air_date),
+    runtimeMinutes: item.runtime,
+    posterUrl: posterUrl(item.poster_path),
+    overview: emptyToUndefined(item.overview),
   };
+};
 
-  const multiCache = new Map<string, readonly ProviderCandidate[]>();
+const multiCache = new Map<string, readonly ProviderCandidate[]>();
 
-  const searchMulti = async (
-    title: string,
-    signal?: AbortSignal,
-  ): Promise<readonly ProviderCandidate[]> => {
-    ensureKey();
-    const cached = multiCache.get(title.toLowerCase());
-    if (cached !== undefined) return cached;
+const searchMulti = async (
+  title: string,
+  signal?: AbortSignal,
+): Promise<readonly ProviderCandidate[]> => {
+  ensureKey();
+  const cached = multiCache.get(title.toLowerCase());
+  if (cached !== undefined) return cached;
 
-    const payload = searchSchema.safeParse(
-      await requestJson(
-        "/search/multi",
-        { query: title, language: "es-ES", include_adult: "false" },
-        key,
-        signal,
-      ),
-    );
-    if (!payload.success) return [];
+  const payload = searchSchema.safeParse(
+    await requestJson(
+      "/search/multi",
+      { query: title, language: "es-ES", include_adult: "false" },
+      key,
+      signal,
+    ),
+  );
+  if (!payload.success) return [];
 
-    const candidates = payload.data.results
-      .slice(0, 10)
-      .flatMap((raw) => {
-        const candidate = toCandidate(raw);
-        return candidate === undefined ? [] : [candidate];
-      });
-    multiCache.set(title.toLowerCase(), candidates);
-    return candidates;
-  };
+  const candidates = payload.data.results.slice(0, 10).flatMap((raw) => {
+    const candidate = toCandidate(raw);
+    return candidate === undefined ? [] : [candidate];
+  });
+  multiCache.set(title.toLowerCase(), candidates);
+  return candidates;
+};
 
-  const findByExternalId = async (
-    id: EmbeddedId,
-    signal?: AbortSignal,
-  ): Promise<ProviderCandidate | undefined> => {
-    ensureKey();
-    if (id.provider === "tmdb") {
-      const movie = await requestJson(
-        `/movie/${String(id.tmdbId)}`,
-        { language: "es-ES" },
-        key,
-        signal,
-      ).catch(() => undefined);
-      const asMovie = movie === undefined ? undefined : toCandidate(movie, "movie");
-      if (asMovie !== undefined) return asMovie;
+const findByExternalId = async (
+  id: EmbeddedId,
+  signal?: AbortSignal,
+): Promise<ProviderCandidate | undefined> => {
+  ensureKey();
+  if (id.provider === "tmdb") {
+    const movie = await requestJson(
+      `/movie/${String(id.tmdbId)}`,
+      { language: "es-ES" },
+      key,
+      signal,
+    ).catch(() => undefined);
+    const asMovie = movie === undefined ? undefined : toCandidate(movie, "movie");
+    if (asMovie !== undefined) return asMovie;
 
-      const series = await requestJson(
-        `/tv/${String(id.tmdbId)}`,
-        { language: "es-ES" },
-        key,
-        signal,
-      ).catch(() => undefined);
-      return series === undefined ? undefined : toCandidate(series, "series");
-    }
-
-    const payload = findSchema.safeParse(
-      await requestJson(
-        `/find/${id.imdbId}`,
-        { language: "es-ES", external_source: "imdb_id" },
-        key,
-        signal,
-      ),
-    );
-    if (!payload.success) return undefined;
-
-    const movie = payload.data.movie_results[0];
-    if (movie !== undefined) return toCandidate(movie, "movie");
-    const series = payload.data.tv_results[0];
+    const series = await requestJson(
+      `/tv/${String(id.tmdbId)}`,
+      { language: "es-ES" },
+      key,
+      signal,
+    ).catch(() => undefined);
     return series === undefined ? undefined : toCandidate(series, "series");
-  };
+  }
 
-  const seasonCache = new Map<string, ReadonlyMap<number, string>>();
+  const payload = findSchema.safeParse(
+    await requestJson(
+      `/find/${id.imdbId}`,
+      { language: "es-ES", external_source: "imdb_id" },
+      key,
+      signal,
+    ),
+  );
+  if (!payload.success) return undefined;
 
-  const getSeasonEpisodes = async (
-    seriesId: number,
-    season: number,
-    signal?: AbortSignal,
-  ): Promise<ReadonlyMap<number, string>> => {
-    ensureKey();
-    const cacheId = `${String(seriesId)}|${String(season)}`;
-    const cached = seasonCache.get(cacheId);
-    if (cached !== undefined) return cached;
+  const movie = payload.data.movie_results[0];
+  if (movie !== undefined) return toCandidate(movie, "movie");
+  const series = payload.data.tv_results[0];
+  return series === undefined ? undefined : toCandidate(series, "series");
+};
 
-    let payload: unknown;
-    try {
-      payload = await requestJson(
-        `/tv/${String(seriesId)}/season/${String(season)}`,
-        { language: "es-ES" },
-        key,
-        signal,
-      );
-    } catch {
-      return new Map<number, string>();
+const seasonCache = new Map<string, ReadonlyMap<number, string>>();
+
+const getSeasonEpisodes = async (
+  seriesId: number,
+  season: number,
+  signal?: AbortSignal,
+): Promise<ReadonlyMap<number, string>> => {
+  ensureKey();
+  const cacheId = `${String(seriesId)}|${String(season)}`;
+  const cached = seasonCache.get(cacheId);
+  if (cached !== undefined) return cached;
+
+  let payload: unknown;
+  try {
+    payload = await requestJson(
+      `/tv/${String(seriesId)}/season/${String(season)}`,
+      { language: "es-ES" },
+      key,
+      signal,
+    );
+  } catch {
+    return new Map<number, string>();
+  }
+
+  const parsed = seasonSchema.safeParse(payload);
+  const episodes = new Map<number, string>();
+  if (parsed.success) {
+    for (const episode of parsed.data.episodes) {
+      const title = emptyToUndefined(episode.name);
+      if (title !== undefined) episodes.set(episode.episode_number, title);
     }
-
-    const parsed = seasonSchema.safeParse(payload);
-    const episodes = new Map<number, string>();
-    if (parsed.success) {
-      for (const episode of parsed.data.episodes) {
-        const title = emptyToUndefined(episode.name);
-        if (title !== undefined) episodes.set(episode.episode_number, title);
-      }
-    }
-    seasonCache.set(cacheId, episodes);
-    return episodes;
-  };
+  }
+  seasonCache.set(cacheId, episodes);
+  return episodes;
+};
 ```
 
 3. Añade `runtime` a `movieResultSchema` (`runtime: z.number().optional()`) y `kind: "movie"` /
@@ -2097,10 +2111,12 @@ git commit -m "feat(tmdb): add multi search, external id lookup and full-season 
 ### Task 10: Señales duras de desempate
 
 **Files:**
+
 - Modify: `src/domain/matching/tmdb-score.ts` (señales de idioma y título original)
 - Modify: `src/domain/matching/tmdb-score.test.ts`
 
 **Interfaces:**
+
 - Consumes: `TmdbMatchQuery` existente (ya admite `runtimeMinutes`).
 - Produces: `TmdbMatchQuery` gana `readonly audioLanguages?: readonly string[]`;
   `TmdbMovieCandidate` gana `readonly originalLanguage?: string`; nuevos componentes
@@ -2117,32 +2133,27 @@ import { rankTmdbCandidates } from "./tmdb-score";
 
 describe("rankTmdbCandidates — señales duras", () => {
   it("la duración separa dos obras con el mismo título y año", () => {
-    const ranked = rankTmdbCandidates(
-      { title: "Dune", year: 2021, runtimeMinutes: 155 },
-      [
-        { id: 1, title: "Dune", releaseYear: 2021, runtimeMinutes: 155 },
-        { id: 2, title: "Dune", releaseYear: 2021, runtimeMinutes: 60 },
-      ],
-    );
+    const ranked = rankTmdbCandidates({ title: "Dune", year: 2021, runtimeMinutes: 155 }, [
+      { id: 1, title: "Dune", releaseYear: 2021, runtimeMinutes: 155 },
+      { id: 2, title: "Dune", releaseYear: 2021, runtimeMinutes: 60 },
+    ]);
     expect(ranked.candidates[0]?.candidate.id).toBe(1);
     expect(ranked.candidates[0]?.score).toBeGreaterThan(ranked.candidates[1]?.score ?? 0);
   });
 
   it("penaliza con fuerza una duración muy distinta", () => {
-    const ranked = rankTmdbCandidates(
-      { title: "Heat", runtimeMinutes: 170 },
-      [{ id: 1, title: "Heat", runtimeMinutes: 45 }],
+    const ranked = rankTmdbCandidates({ title: "Heat", runtimeMinutes: 170 }, [
+      { id: 1, title: "Heat", runtimeMinutes: 45 },
+    ]);
+    expect(ranked.candidates[0]?.components.some((component) => component.points <= -40)).toBe(
+      true,
     );
-    expect(
-      ranked.candidates[0]?.components.some((component) => component.points <= -40),
-    ).toBe(true);
   });
 
   it("suma cuando el idioma original de la obra está entre las pistas", () => {
-    const withLanguage = rankTmdbCandidates(
-      { title: "Heat", audioLanguages: ["es", "en"] },
-      [{ id: 1, title: "Heat", originalLanguage: "en" }],
-    );
+    const withLanguage = rankTmdbCandidates({ title: "Heat", audioLanguages: ["es", "en"] }, [
+      { id: 1, title: "Heat", originalLanguage: "en" },
+    ]);
     const withoutLanguage = rankTmdbCandidates({ title: "Heat" }, [
       { id: 1, title: "Heat", originalLanguage: "en" },
     ]);
@@ -2186,17 +2197,17 @@ Añade `"original-language-present"` a la unión `MatchScoreComponent["code"]` y
 `scoreRawCandidate`, tras el bloque de año:
 
 ```ts
-  const originalLanguage = candidate.originalLanguage?.toLowerCase();
-  if (
-    originalLanguage !== undefined &&
-    query.audioLanguages?.some((language) => language.toLowerCase() === originalLanguage) === true
-  ) {
-    components.push({
-      code: "original-language-present",
-      points: 10,
-      explanation: `El idioma original (${originalLanguage}) está entre las pistas de audio: +10`,
-    });
-  }
+const originalLanguage = candidate.originalLanguage?.toLowerCase();
+if (
+  originalLanguage !== undefined &&
+  query.audioLanguages?.some((language) => language.toLowerCase() === originalLanguage) === true
+) {
+  components.push({
+    code: "original-language-present",
+    points: 10,
+    explanation: `El idioma original (${originalLanguage}) está entre las pistas de audio: +10`,
+  });
+}
 ```
 
 y suma sus puntos al total como el resto de componentes.
@@ -2204,29 +2215,29 @@ y suma sus puntos al total como el resto de componentes.
 Verifica que la señal de duración ya existente use estos umbrales; si no, ajústala:
 
 ```ts
-  const runtime = candidate.runtimeMinutes;
-  if (query.runtimeMinutes !== undefined && runtime !== undefined && runtime > 0) {
-    const deviation = Math.abs(runtime - query.runtimeMinutes) / runtime;
-    if (deviation <= 0.05) {
-      components.push({
-        code: "runtime-compatible",
-        points: 30,
-        explanation: `Duración compatible (${String(runtime)} min): +30`,
-      });
-    } else if (deviation > 0.2) {
-      components.push({
-        code: "runtime-different",
-        points: -40,
-        explanation: `Duración muy distinta (${String(runtime)} min frente a ${String(query.runtimeMinutes)} min): -40`,
-      });
-    } else {
-      components.push({
-        code: "runtime-close",
-        points: 10,
-        explanation: `Duración parecida (${String(runtime)} min): +10`,
-      });
-    }
+const runtime = candidate.runtimeMinutes;
+if (query.runtimeMinutes !== undefined && runtime !== undefined && runtime > 0) {
+  const deviation = Math.abs(runtime - query.runtimeMinutes) / runtime;
+  if (deviation <= 0.05) {
+    components.push({
+      code: "runtime-compatible",
+      points: 30,
+      explanation: `Duración compatible (${String(runtime)} min): +30`,
+    });
+  } else if (deviation > 0.2) {
+    components.push({
+      code: "runtime-different",
+      points: -40,
+      explanation: `Duración muy distinta (${String(runtime)} min frente a ${String(query.runtimeMinutes)} min): -40`,
+    });
+  } else {
+    components.push({
+      code: "runtime-close",
+      points: 10,
+      explanation: `Duración parecida (${String(runtime)} min): +10`,
+    });
   }
+}
 ```
 
 Actualiza `DEFAULT_THRESHOLDS` a `{ high: 80, medium: 50, minimumLead: 20 }` conforme a la spec.
@@ -2248,10 +2259,12 @@ git commit -m "feat(matching): score runtime and original-language signals"
 ### Task 11: Resolvedor en cascada
 
 **Files:**
+
 - Create: `src/services/identification/resolver.ts`
 - Create: `src/services/identification/resolver.test.ts`
 
 **Interfaces:**
+
 - Consumes: `MetadataProvider` (Task 9), `rankTmdbCandidates` (Task 10), `IdentificationHints` con
   `embeddedId` (Task 8).
 - Produces:
@@ -2266,7 +2279,11 @@ git commit -m "feat(matching): score runtime and original-language signals"
 import { describe, expect, it, vi } from "vitest";
 
 import { extractIdentificationHints } from "../../domain/identification/hints";
-import { nullMetadataProvider, type MetadataProvider, type ProviderCandidate } from "../providers/types";
+import {
+  nullMetadataProvider,
+  type MetadataProvider,
+  type ProviderCandidate,
+} from "../providers/types";
 import { resolveWork } from "./resolver";
 
 const candidate = (partial: Partial<ProviderCandidate> = {}): ProviderCandidate => ({
@@ -2403,7 +2420,10 @@ Expected: FAIL — módulo inexistente.
 
 ```ts
 // src/services/identification/resolver.ts
-import type { IdentificationHints, ProviderCandidateSummary } from "../../domain/identification/types";
+import type {
+  IdentificationHints,
+  ProviderCandidateSummary,
+} from "../../domain/identification/types";
 import {
   rankTmdbCandidates,
   type MatchBand,
@@ -2466,9 +2486,7 @@ const toScoring = (candidate: ProviderCandidate): TmdbMovieCandidate => ({
     ? {}
     : { originalLanguage: candidate.originalLanguage }),
   ...(candidate.year === undefined ? {} : { releaseYear: candidate.year }),
-  ...(candidate.runtimeMinutes === undefined
-    ? {}
-    : { runtimeMinutes: candidate.runtimeMinutes }),
+  ...(candidate.runtimeMinutes === undefined ? {} : { runtimeMinutes: candidate.runtimeMinutes }),
 });
 
 const summarize = (
@@ -2539,7 +2557,11 @@ export const resolveWork = async (
         };
       }
     } catch (error) {
-      return { ...empty, attempts, error: error instanceof Error ? error : new Error(String(error)) };
+      return {
+        ...empty,
+        attempts,
+        error: error instanceof Error ? error : new Error(String(error)),
+      };
     }
   }
 
@@ -2657,10 +2679,12 @@ git commit -m "feat(identification): resolve works through a seven-step cascade"
 ### Task 12: Correcciones aprendidas
 
 **Files:**
+
 - Create: `src/services/learned-corrections.ts`
 - Create: `src/services/learned-corrections.test.ts`
 
 **Interfaces:**
+
 - Consumes: `WorkKind`, `EmbeddedId`.
 - Produces: `rememberCorrection(title, kind, tmdbId): void`,
   `recallCorrection(title, kind): number | undefined`, `forgetAllCorrections(): void`.
@@ -2799,12 +2823,14 @@ git commit -m "feat(identification): remember manual TMDb corrections"
 ### Task 13: Integración del pipeline
 
 **Files:**
+
 - Modify: `src/services/identification-service.ts` (delega en el resolvedor)
 - Modify: `src/services/identification-service.test.ts`
 - Modify: `src/services/item-pipeline.ts` (duración, idiomas, título del contenedor, carpeta)
 - Modify: `src/services/item-pipeline.test.ts`
 
 **Interfaces:**
+
 - Consumes: `resolveWork` (Task 11), `recallCorrection` (Task 12), `getSeasonEpisodes` (Task 9).
 - Produces: `identifyContent(hints, provider, options): Promise<IdentificationOutcome>` con
   `options` ampliado a `{ signal?; previouslySelectedId?; runtimeMinutes?; audioLanguages?; parentFolderName? }`;
@@ -2913,9 +2939,7 @@ export const identifyContent = async (
     {
       hints,
       ...(options.runtimeMinutes === undefined ? {} : { runtimeMinutes: options.runtimeMinutes }),
-      ...(options.audioLanguages === undefined
-        ? {}
-        : { audioLanguages: options.audioLanguages }),
+      ...(options.audioLanguages === undefined ? {} : { audioLanguages: options.audioLanguages }),
       ...(options.parentFolderName === undefined
         ? {}
         : { parentFolderName: options.parentFolderName }),
@@ -2923,9 +2947,9 @@ export const identifyContent = async (
     provider,
     {
       ...(options.signal === undefined ? {} : { signal: options.signal }),
-      ...(options.previouslySelectedId ?? learned) === undefined
+      ...((options.previouslySelectedId ?? learned) === undefined
         ? {}
-        : { previouslySelectedId: options.previouslySelectedId ?? learned },
+        : { previouslySelectedId: options.previouslySelectedId ?? learned }),
     },
   );
 
@@ -2957,14 +2981,14 @@ export const identifyContent = async (
 En `applyCandidate`, sustituye la llamada por episodio por la temporada completa:
 
 ```ts
-  if (base.kind === "series" && season !== undefined && episode !== undefined) {
-    try {
-      const episodes = await provider.getSeasonEpisodes(candidate.id, season, context.signal);
-      episodeTitle = episodes.get(episode);
-    } catch {
-      episodeTitle = undefined;
-    }
+if (base.kind === "series" && season !== undefined && episode !== undefined) {
+  try {
+    const episodes = await provider.getSeasonEpisodes(candidate.id, season, context.signal);
+    episodeTitle = episodes.get(episode);
+  } catch {
+    episodeTitle = undefined;
   }
+}
 ```
 
 Amplía `IdentifyOptions` con `runtimeMinutes`, `audioLanguages` y `parentFolderName`, e
@@ -2995,9 +3019,7 @@ export const identifyMediaItem = async (
   const outcome = await identifyContent(hints, provider, {
     ...(signal === undefined ? {} : { signal }),
     autoApplyBand: settings.autoApplyBand,
-    ...(durationSeconds === undefined
-      ? {}
-      : { runtimeMinutes: Math.round(durationSeconds / 60) }),
+    ...(durationSeconds === undefined ? {} : { runtimeMinutes: Math.round(durationSeconds / 60) }),
     ...(audioLanguages.length === 0 ? {} : { audioLanguages }),
     ...(item.folderName === undefined ? {} : { parentFolderName: item.folderName }),
     ...(item.identification.reference === undefined
@@ -3047,10 +3069,12 @@ git commit -m "feat(identification): feed duration, languages and container titl
 ### Task 14: Modelo puro de la lista
 
 **Files:**
+
 - Create: `src/features/renamer/row-model.ts`
 - Create: `src/features/renamer/row-model.test.ts`
 
 **Interfaces:**
+
 - Consumes: `MediaItem`, `RenamePlanItem`.
 - Produces:
   - `type RowState = "analyzing" | "ready" | "review" | "error"`
@@ -3259,6 +3283,7 @@ git commit -m "feat(ui): add pure row state, filtering and selection model"
 ### Task 15: Fila, detalle y candidatos
 
 **Files:**
+
 - Create: `src/features/renamer/FileRow.tsx`
 - Create: `src/features/renamer/CandidateList.tsx`
 - Create: `src/features/renamer/RowDetail.tsx`
@@ -3267,6 +3292,7 @@ git commit -m "feat(ui): add pure row state, filtering and selection model"
 - Modify: `src/styles/features.css`
 
 **Interfaces:**
+
 - Consumes: `rowStateOf` (Task 14), `MediaItem`, `ProviderCandidateSummary`.
 - Produces: `<FileRow item planItem state selected expanded on… />`, `<CandidateList candidates appliedId onChoose />`, `<RowDetail item onEditField onSetKind onSetSource onSearch onChooseCandidate />`.
 
@@ -3459,11 +3485,13 @@ git commit -m "feat(ui): replace item cards with rows, detail panel and candidat
 ### Task 16: Ficha técnica
 
 **Files:**
+
 - Create: `src/features/renamer/TechnicalSheet.tsx`
 - Modify: `src/features/renamer/RowDetail.tsx`
 - Modify: `src/styles/features.css`
 
 **Interfaces:**
+
 - Consumes: `Traced<T>`, `describeConfidence`, `describeSource` de `domain/media/provenance.ts`.
 - Produces: `<TechnicalSheet media={NormalizedMedia} identification={ContentIdentification} attempts={readonly string[]} />`.
 
@@ -3529,12 +3557,22 @@ export const TechnicalSheet = ({ media, identification, attempts }: TechnicalShe
     ),
     entry("Fuente", media.source.media),
     entry("Tipo de lanzamiento", media.source.type),
-    entry("Códec de vídeo", video?.codec ?? { value: undefined, confidence: "UNKNOWN", source: "DERIVED" }),
-    entry("Profundidad de bits", video?.bitDepth ?? { value: undefined, confidence: "UNKNOWN", source: "DERIVED" }),
-    entry("Duración", media.general.durationSeconds, (() => {
-      const seconds = media.general.durationSeconds.value;
-      return seconds === undefined ? undefined : `${String(Math.round(seconds / 60))} min`;
-    })()),
+    entry(
+      "Códec de vídeo",
+      video?.codec ?? { value: undefined, confidence: "UNKNOWN", source: "DERIVED" },
+    ),
+    entry(
+      "Profundidad de bits",
+      video?.bitDepth ?? { value: undefined, confidence: "UNKNOWN", source: "DERIVED" },
+    ),
+    entry(
+      "Duración",
+      media.general.durationSeconds,
+      (() => {
+        const seconds = media.general.durationSeconds.value;
+        return seconds === undefined ? undefined : `${String(Math.round(seconds / 60))} min`;
+      })(),
+    ),
     entry("Contenedor", media.general.container),
   ];
 
@@ -3559,9 +3597,7 @@ export const TechnicalSheet = ({ media, identification, attempts }: TechnicalShe
       </dl>
 
       {attempts.length === 0 ? null : (
-        <p className="sheet-attempts">
-          Consultas lanzadas: {attempts.join(" → ")}
-        </p>
+        <p className="sheet-attempts">Consultas lanzadas: {attempts.join(" → ")}</p>
       )}
 
       {media.warnings.length === 0 ? null : (
@@ -3595,12 +3631,14 @@ git commit -m "feat(ui): surface data provenance in a technical sheet"
 ### Task 17: Barra de lista, acciones de lote y virtualización
 
 **Files:**
+
 - Create: `src/features/renamer/ListToolbar.tsx`
 - Modify: `src/features/renamer/RenamerScreen.tsx`
 - Modify: `src/features/renamer/useRenamerState.ts`
 - Modify: `src/styles/features.css`
 
 **Interfaces:**
+
 - Consumes: `countByState`, `filterItems`, `toggleSelection`, `rowStateOf` (Task 14).
 - Produces: `<ListToolbar counts filter onFilter selectedCount onBatchKind onBatchSource onRetry onRemoveSelected />`; el estado expone `selected: ReadonlySet<string>`, `filter: ListFilter`, `setFilter`, `setSelected`, `retrySelected`.
 
@@ -3690,16 +3728,28 @@ export const ListToolbar = ({
     {selectedCount === 0 ? null : (
       <div className="batch-actions">
         <span>{selectedCount} seleccionados</span>
-        <button type="button" className="apple-button apple-button-ghost" onClick={() => onBatchKind("movie")}>
+        <button
+          type="button"
+          className="apple-button apple-button-ghost"
+          onClick={() => onBatchKind("movie")}
+        >
           <Film size={14} aria-hidden /> Película
         </button>
-        <button type="button" className="apple-button apple-button-ghost" onClick={() => onBatchKind("series")}>
+        <button
+          type="button"
+          className="apple-button apple-button-ghost"
+          onClick={() => onBatchKind("series")}
+        >
           <Tv size={14} aria-hidden /> Serie
         </button>
         <button type="button" className="apple-button apple-button-ghost" onClick={onRetrySelected}>
           <RefreshCw size={14} aria-hidden /> Reintentar
         </button>
-        <button type="button" className="apple-button apple-button-ghost" onClick={onRemoveSelected}>
+        <button
+          type="button"
+          className="apple-button apple-button-ghost"
+          onClick={onRemoveSelected}
+        >
           <Trash2 size={14} aria-hidden /> Quitar
         </button>
       </div>
@@ -3744,12 +3794,14 @@ git commit -m "feat(ui): add filters, batch actions and list virtualisation"
 ### Task 18: Previsualización del lote
 
 **Files:**
+
 - Create: `src/features/renamer/BatchPreviewDialog.tsx`
 - Modify: `src/features/renamer/RenamerScreen.tsx`
 - Modify: `src/features/renamer/useRenamerState.ts`
 - Modify: `src/styles/features.css`
 
 **Interfaces:**
+
 - Consumes: `RenamePlan` de `services/rename/plan.ts`.
 - Produces: `<BatchPreviewDialog plan onConfirm onCancel />`; el estado expone `previewOpen: boolean`, `openPreview()`, `closePreview()`, y `renameAll()` deja de escribir sin confirmación.
 
@@ -3877,6 +3929,7 @@ git commit -m "feat(ui): require batch preview confirmation before renaming"
 ### Task 19: Ajustes completos y limpieza
 
 **Files:**
+
 - Modify: `src/features/renamer/SettingsPanel.tsx`
 - Modify: `src/services/settings.ts`
 - Modify: `src/features/renamer/RenamerScreen.tsx`
@@ -3884,6 +3937,7 @@ git commit -m "feat(ui): require batch preview confirmation before renaming"
 - Modify: `README.md`
 
 **Interfaces:**
+
 - Consumes: `NAME_PRESETS`, `forgetAllCorrections` (Task 12).
 - Produces: `AppSettings` sin las ocho opciones muertas y con `nameTargetLength`; `<SettingsPanel>` como modal accesible.
 

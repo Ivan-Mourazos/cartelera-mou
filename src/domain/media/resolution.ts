@@ -65,12 +65,16 @@ export const classifyResolution = (
 
   const byWidth = bandForWidth(longEdge);
   const byHeight = bandForHeight(shortEdge);
-  const useHeight = RANK[byHeight.quality] > RANK[byWidth.quality];
+  // La anchura decide la CLASE (un scope recortado sigue siendo 4K), pero dentro
+  // de una misma clase la etiqueta en píxeles la marca la altura real: 720×480 es
+  // un DVD NTSC (480p) y 720×576 uno PAL (576p), y ambos miden 720 de ancho.
+  const useHeight = RANK[byHeight.quality] >= RANK[byWidth.quality];
   const band = useHeight ? byHeight : byWidth;
 
-  const reason = useHeight
-    ? `${String(width)}×${String(height)}: la altura ${String(shortEdge)} corresponde a ${byHeight.quality} (contenido anamórfico o con bandas laterales)`
-    : `${String(width)}×${String(height)}: anchura ${String(longEdge)} ⇒ ${byWidth.quality}`;
+  const reason =
+    useHeight && RANK[byHeight.quality] > RANK[byWidth.quality]
+      ? `${String(width)}×${String(height)}: la altura ${String(shortEdge)} corresponde a ${byHeight.quality} (contenido anamórfico o con bandas laterales)`
+      : `${String(width)}×${String(height)}: anchura ${String(longEdge)} ⇒ ${band.quality} ${band.pixelLabel}`;
 
   return { quality: band.quality, pixelLabel: band.pixelLabel, width, height, reason };
 };

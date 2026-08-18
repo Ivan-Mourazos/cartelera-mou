@@ -58,6 +58,7 @@ const nameOptions = (settings: AppSettings) => {
     includeProviderId: settings.includeProviderId,
     includeSubtitleLanguages: settings.includeSubtitleLanguages,
     allowInferredSource: settings.includeSource,
+    targetLength: settings.nameTargetLength,
   };
 };
 

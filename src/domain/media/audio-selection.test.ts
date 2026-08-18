@@ -60,9 +60,7 @@ describe("selección de la pista principal", () => {
 
 describe("formato del bloque de audio", () => {
   const primaryFor = (fields: Record<string, unknown>) =>
-    formatPrimaryAudio(
-      selectAudio(mediaFor("peli.mkv", { audio: [audioTrack(fields)] })).primary,
-    );
+    formatPrimaryAudio(selectAudio(mediaFor("peli.mkv", { audio: [audioTrack(fields)] })).primary);
 
   it("escribe Castellano con el códec y los canales", () => {
     expect(

@@ -15,20 +15,20 @@ interviene donde la aplicación le avisa, y siempre puede cambiar cualquier deci
 
 ## 2. Decisiones cerradas
 
-| Decisión | Valor acordado |
-| --- | --- |
-| Bloque de vídeo | Híbrido: clase comercial + resolución en píxeles + fuente + códec + bits + HDR |
-| Bloque de audio | Idioma principal + códec + canales, y después el resto de idiomas |
-| Etiqueta del audio principal en español de España | `Castellano` (palabra completa) |
-| Otros idiomas | Abreviatura de tres letras (`ENG`, `FRA`, `ITA`) |
-| Estructura de serie | `Serie (Año) - SxxExx - Título [vídeo] [audio]` |
-| Fuente (BluRay/WEB-DL/DVDRip…) | Se confía en la etiqueta del nombre; si no la hay, se infiere por bitrate, códec y resolución |
-| Emparejado TMDb | Se aplica siempre el mejor candidato; las alternativas quedan visibles para cambiarlo |
-| Alcance | Solo renombrar archivos: no se crean ni se mueven carpetas |
-| Interfaz | Una sola pantalla, minimal, con todas las funciones accesibles |
-| Longitud objetivo del nombre | 120 caracteres, con recorte en cascada |
-| Antes de escribir en disco | Previsualización del lote y confirmación explícita |
-| Clave de TMDb | Ya configurada por la persona usuaria |
+| Decisión                                          | Valor acordado                                                                                |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Bloque de vídeo                                   | Híbrido: clase comercial + resolución en píxeles + fuente + códec + bits + HDR                |
+| Bloque de audio                                   | Idioma principal + códec + canales, y después el resto de idiomas                             |
+| Etiqueta del audio principal en español de España | `Castellano` (palabra completa)                                                               |
+| Otros idiomas                                     | Abreviatura de tres letras (`ENG`, `FRA`, `ITA`)                                              |
+| Estructura de serie                               | `Serie (Año) - SxxExx - Título [vídeo] [audio]`                                               |
+| Fuente (BluRay/WEB-DL/DVDRip…)                    | Se confía en la etiqueta del nombre; si no la hay, se infiere por bitrate, códec y resolución |
+| Emparejado TMDb                                   | Se aplica siempre el mejor candidato; las alternativas quedan visibles para cambiarlo         |
+| Alcance                                           | Solo renombrar archivos: no se crean ni se mueven carpetas                                    |
+| Interfaz                                          | Una sola pantalla, minimal, con todas las funciones accesibles                                |
+| Longitud objetivo del nombre                      | 120 caracteres, con recorte en cascada                                                        |
+| Antes de escribir en disco                        | Previsualización del lote y confirmación explícita                                            |
+| Clave de TMDb                                     | Ya configurada por la persona usuaria                                                         |
 
 ## 3. Formato del nombre
 
@@ -53,14 +53,14 @@ La clase se decide por la **anchura del máster**, no por la altura: las pelícu
 verticalmente (2.39:1, 2.20:1) y un UHD real puede medir `3840×1608`. Se corrige al alza cuando la
 altura indica una clase superior (contenido anamórfico o con bandas laterales, p. ej. `1440×1080`).
 
-| Clase | Anchura del lado largo | Resolución escrita |
-| --- | --- | --- |
-| `8K` | ≥ 7000 | `4320p` |
-| `4K` | ≥ 3400 | `2160p` |
-| `2K` | 2000 – 3399 | `1440p` |
-| `Full HD` | 1800 – 1999 | `1080p` |
-| `HD` | 1200 – 1799 | `720p` |
-| `SD` | < 1200 | `576p` si la altura ≥ 500, si no `480p` |
+| Clase     | Anchura del lado largo | Resolución escrita                      |
+| --------- | ---------------------- | --------------------------------------- |
+| `8K`      | ≥ 7000                 | `4320p`                                 |
+| `4K`      | ≥ 3400                 | `2160p`                                 |
+| `2K`      | 2000 – 3399            | `1440p`                                 |
+| `Full HD` | 1800 – 1999            | `1080p`                                 |
+| `HD`      | 1200 – 1799            | `720p`                                  |
+| `SD`      | < 1200                 | `576p` si la altura ≥ 500, si no `480p` |
 
 Cuando MediaInfo no devuelve dimensiones utilizables no se inventa nada: se recurre al token de
 resolución del nombre si existe, marcado como inferido; si tampoco lo hay, el bloque de vídeo se
@@ -81,15 +81,15 @@ Valores admitidos:
 La fuente **no es verificable** leyendo el archivo. Se escribe igualmente, y la ficha técnica declara
 siempre que el dato es inferido y por qué. Reglas, evaluadas en orden:
 
-| Condición | Fuente inferida |
-| --- | --- |
-| Bitrate total > 60 Mbps, HEVC, 2160p | `BluRay REMUX` |
-| Bitrate total > 25 Mbps, AVC, 1080p | `BluRay REMUX` |
-| Bitrate total 8 – 25 Mbps, 1080p o 2160p | `BluRay` |
-| Bitrate total 3 – 8 Mbps, HEVC o AVC | `WEB-DL` |
-| Bitrate total < 3 Mbps, resolución ≥ 720p | `WEBRip` |
-| Códec XviD o DivX y resolución ≤ 576p | `DVDRip` |
-| Cualquier otro caso | sin fuente: el bloque se escribe sin ella |
+| Condición                                 | Fuente inferida                           |
+| ----------------------------------------- | ----------------------------------------- |
+| Bitrate total > 60 Mbps, HEVC, 2160p      | `BluRay REMUX`                            |
+| Bitrate total > 25 Mbps, AVC, 1080p       | `BluRay REMUX`                            |
+| Bitrate total 8 – 25 Mbps, 1080p o 2160p  | `BluRay`                                  |
+| Bitrate total 3 – 8 Mbps, HEVC o AVC      | `WEB-DL`                                  |
+| Bitrate total < 3 Mbps, resolución ≥ 720p | `WEBRip`                                  |
+| Códec XviD o DivX y resolución ≤ 576p     | `DVDRip`                                  |
+| Cualquier otro caso                       | sin fuente: el bloque se escribe sin ella |
 
 Precedencia: **corrección manual > etiqueta explícita del nombre > inferencia**.
 
@@ -165,12 +165,12 @@ pasa a ser accesible desde la interfaz, cosa que hoy no ocurre.
 
 ### 4.1 Fuentes de señal
 
-| Fuente | Aporta | Estado actual |
-| --- | --- | --- |
-| Nombre del archivo | título, año, `SxxExx`, fuente, edición, grupo, idiomas declarados | única usada |
-| `General/Title` del contenedor | nombre de release completo incrustado en el MKV | leído y descartado |
-| Duración real del archivo | desempate contra `runtime` de TMDb | leído y descartado |
-| Carpeta padre y carpeta abuela | título de la serie y número de temporada | solo la carpeta directa |
+| Fuente                         | Aporta                                                            | Estado actual           |
+| ------------------------------ | ----------------------------------------------------------------- | ----------------------- |
+| Nombre del archivo             | título, año, `SxxExx`, fuente, edición, grupo, idiomas declarados | única usada             |
+| `General/Title` del contenedor | nombre de release completo incrustado en el MKV                   | leído y descartado      |
+| Duración real del archivo      | desempate contra `runtime` de TMDb                                | leído y descartado      |
+| Carpeta padre y carpeta abuela | título de la serie y número de temporada                          | solo la carpeta directa |
 
 Cuando el nombre del archivo es inservible (`01.mkv`, `pelicula.mkv`, `video_final.mkv`), las pistas
 se extraen del `General/Title` y de las carpetas, en ese orden.
@@ -197,15 +197,15 @@ explicar el resultado.
 
 Sobre la puntuación existente (`domain/matching/tmdb-score.ts`) se añaden señales duras:
 
-| Señal | Puntos |
-| --- | --- |
-| Duración del archivo dentro del ±5 % del `runtime` de TMDb | +30 |
-| Desviación de duración > 20 % | −40 |
-| Año coincidente | +25 |
-| Año con diferencia de 1 | +10 |
-| Idioma original de la obra presente entre las pistas de audio | +10 |
-| Coincide también el título original, no solo el español | +15 |
-| Popularidad de TMDb | solo como desempate final entre iguales |
+| Señal                                                         | Puntos                                  |
+| ------------------------------------------------------------- | --------------------------------------- |
+| Duración del archivo dentro del ±5 % del `runtime` de TMDb    | +30                                     |
+| Desviación de duración > 20 %                                 | −40                                     |
+| Año coincidente                                               | +25                                     |
+| Año con diferencia de 1                                       | +10                                     |
+| Idioma original de la obra presente entre las pistas de audio | +10                                     |
+| Coincide también el título original, no solo el español       | +15                                     |
+| Popularidad de TMDb                                           | solo como desempate final entre iguales |
 
 Bandas: **alta** ≥ 80 puntos con al menos 20 de margen sobre el segundo; **media** ≥ 50; **baja** por
 debajo. La duración solo puntúa cuando TMDb devuelve `runtime` y el archivo tiene duración legible;
@@ -270,12 +270,12 @@ No hay ningún paso obligatorio entre soltar y renombrar cuando todo se identifi
 
 ### 5.2 Estados por fila
 
-| Símbolo | Estado | Significado |
-| --- | --- | --- |
-| ○ gris | analizando | MediaInfo o TMDb en curso |
-| ● verde | listo | banda alta, sin alertas |
-| ▲ ámbar | revisar | banda media, español de región ambigua, sin resolución, episodio sin `SxxExx`, fuente inferida sin etiqueta |
-| ✕ rojo | error | sin resultados, archivo ilegible, sin acceso de escritura, conflicto de destino |
+| Símbolo | Estado     | Significado                                                                                                 |
+| ------- | ---------- | ----------------------------------------------------------------------------------------------------------- |
+| ○ gris  | analizando | MediaInfo o TMDb en curso                                                                                   |
+| ● verde | listo      | banda alta, sin alertas                                                                                     |
+| ▲ ámbar | revisar    | banda media, español de región ambigua, sin resolución, episodio sin `SxxExx`, fuente inferida sin etiqueta |
+| ✕ rojo  | error      | sin resultados, archivo ilegible, sin acceso de escritura, conflicto de destino                             |
 
 ### 5.3 Componentes
 
@@ -322,21 +322,21 @@ lee ningún módulo: `includeYear`, `includeQuality`, `includeVideoCodec`, `incl
 
 ### 6.1 Módulos nuevos
 
-| Módulo | Responsabilidad |
-| --- | --- |
-| `domain/naming/release-labels.ts` | Vocabulario: clases comerciales, resoluciones, fuentes, códecs de audio y vídeo |
-| `domain/media/source-inference.ts` | Heurística de fuente por bitrate, códec y resolución, con motivo |
-| `domain/naming/budget.ts` | Recorte en cascada al objetivo de 120 y a los topes de Windows |
-| `domain/identification/signals.ts` | Señales duras de desempate: duración, año, idioma, título original |
-| `domain/identification/embedded-ids.ts` | Extracción de identificadores IMDb y TMDb del nombre |
-| `services/identification/resolver.ts` | Cascada de siete consultas y decisión de tipo |
-| `services/learned-corrections.ts` | Memoria persistente de correcciones manuales |
-| `features/renamer/FileRow.tsx` | Fila compacta con estado y edición en línea |
-| `features/renamer/RowDetail.tsx` | Detalle desplegable con correcciones |
-| `features/renamer/CandidateList.tsx` | Alternativas de TMDb con póster |
-| `features/renamer/TechnicalSheet.tsx` | Ficha técnica con procedencia y confianza |
-| `features/renamer/BatchPreviewDialog.tsx` | Previsualización y confirmación del lote |
-| `features/renamer/ListToolbar.tsx` | Contadores-filtro, filtrado y acciones de lote |
+| Módulo                                    | Responsabilidad                                                                 |
+| ----------------------------------------- | ------------------------------------------------------------------------------- |
+| `domain/naming/release-labels.ts`         | Vocabulario: clases comerciales, resoluciones, fuentes, códecs de audio y vídeo |
+| `domain/media/source-inference.ts`        | Heurística de fuente por bitrate, códec y resolución, con motivo                |
+| `domain/naming/budget.ts`                 | Recorte en cascada al objetivo de 120 y a los topes de Windows                  |
+| `domain/identification/signals.ts`        | Señales duras de desempate: duración, año, idioma, título original              |
+| `domain/identification/embedded-ids.ts`   | Extracción de identificadores IMDb y TMDb del nombre                            |
+| `services/identification/resolver.ts`     | Cascada de siete consultas y decisión de tipo                                   |
+| `services/learned-corrections.ts`         | Memoria persistente de correcciones manuales                                    |
+| `features/renamer/FileRow.tsx`            | Fila compacta con estado y edición en línea                                     |
+| `features/renamer/RowDetail.tsx`          | Detalle desplegable con correcciones                                            |
+| `features/renamer/CandidateList.tsx`      | Alternativas de TMDb con póster                                                 |
+| `features/renamer/TechnicalSheet.tsx`     | Ficha técnica con procedencia y confianza                                       |
+| `features/renamer/BatchPreviewDialog.tsx` | Previsualización y confirmación del lote                                        |
+| `features/renamer/ListToolbar.tsx`        | Contadores-filtro, filtrado y acciones de lote                                  |
 
 ### 6.2 Módulos reescritos
 
@@ -359,30 +359,30 @@ comerciales), `domain/naming/rules.ts` (vocabulario del parser),
 
 ## 7. Mapa de defectos corregidos
 
-| Id | Defecto detectado en la auditoría | Corrección en este diseño |
-| --- | --- | --- |
-| U1 | Los candidatos puntuados de TMDb se calculan y se descartan sin mostrarse | `CandidateList` en cada fila, siempre disponible |
-| U2 | Las alertas del constructor de nombres nunca se pintan | Estado por fila y lista de alertas en el detalle |
-| U3 | El renombrado escribe en disco sin confirmación | `BatchPreviewDialog` obligatorio |
-| U4 | El modelo de procedencia y confianza es invisible | `TechnicalSheet` |
-| U5 | No hay selección múltiple ni acciones de lote | `ListToolbar` con acciones sobre la selección |
-| U6 | `@tanstack/react-virtual` instalado y sin usar | Virtualización a partir de 50 filas |
-| U7 | Sin filtro ni orden | Contadores-filtro y filtrado por texto |
-| U8 | Ajustes expone 2 de 15 opciones; el preset `custom` es inalcanzable | Ajustes completos, con plantillas libres |
-| U9 | Ocho opciones de configuración que no lee nadie | Eliminadas |
-| U10 | Panel sin overlay, sin foco atrapado, sin `Esc`; toast que se pisa | Modal accesible y cola de avisos |
-| U11 | Sin aviso de clave de TMDb en la pantalla inicial | Aviso y validación en vivo |
-| U12 | La zona de soltar desaparece al haber archivos | La lista mantiene la pista visual de soltar |
-| D1 | Búsqueda con año estricto y sin reintento | Cascada con año ±1 y sin año |
-| D2 | Sin `/search/multi`: todo se asume película | Paso 5 de la cascada |
-| D3 | La duración del archivo se lee y se descarta | Señal de desempate de +30 / −40 puntos |
-| D4 | Identificadores incrustados en el nombre ignorados | Paso 1 de la cascada |
-| D5 | La identificación reextrae pistas y pisa correcciones | El resolvedor recibe la identificación vigente |
-| D6 | Lógica de auto-aplicación ambigua en banda media | Bandas explícitas con margen mínimo |
-| D7 | Una búsqueda y una consulta por episodio | Serie resuelta una vez, temporada en una llamada |
-| D8 | Vocabulario del parser incompleto | Vocabulario ampliado |
-| D9 | Los tokens de resolución detectados nunca se usan | Respaldo declarado cuando falta MediaInfo |
-| D10 | La doctrina de fuente impedía escribir etiquetas de release | Se escribe con inferencia y procedencia visible |
+| Id  | Defecto detectado en la auditoría                                         | Corrección en este diseño                        |
+| --- | ------------------------------------------------------------------------- | ------------------------------------------------ |
+| U1  | Los candidatos puntuados de TMDb se calculan y se descartan sin mostrarse | `CandidateList` en cada fila, siempre disponible |
+| U2  | Las alertas del constructor de nombres nunca se pintan                    | Estado por fila y lista de alertas en el detalle |
+| U3  | El renombrado escribe en disco sin confirmación                           | `BatchPreviewDialog` obligatorio                 |
+| U4  | El modelo de procedencia y confianza es invisible                         | `TechnicalSheet`                                 |
+| U5  | No hay selección múltiple ni acciones de lote                             | `ListToolbar` con acciones sobre la selección    |
+| U6  | `@tanstack/react-virtual` instalado y sin usar                            | Virtualización a partir de 50 filas              |
+| U7  | Sin filtro ni orden                                                       | Contadores-filtro y filtrado por texto           |
+| U8  | Ajustes expone 2 de 15 opciones; el preset `custom` es inalcanzable       | Ajustes completos, con plantillas libres         |
+| U9  | Ocho opciones de configuración que no lee nadie                           | Eliminadas                                       |
+| U10 | Panel sin overlay, sin foco atrapado, sin `Esc`; toast que se pisa        | Modal accesible y cola de avisos                 |
+| U11 | Sin aviso de clave de TMDb en la pantalla inicial                         | Aviso y validación en vivo                       |
+| U12 | La zona de soltar desaparece al haber archivos                            | La lista mantiene la pista visual de soltar      |
+| D1  | Búsqueda con año estricto y sin reintento                                 | Cascada con año ±1 y sin año                     |
+| D2  | Sin `/search/multi`: todo se asume película                               | Paso 5 de la cascada                             |
+| D3  | La duración del archivo se lee y se descarta                              | Señal de desempate de +30 / −40 puntos           |
+| D4  | Identificadores incrustados en el nombre ignorados                        | Paso 1 de la cascada                             |
+| D5  | La identificación reextrae pistas y pisa correcciones                     | El resolvedor recibe la identificación vigente   |
+| D6  | Lógica de auto-aplicación ambigua en banda media                          | Bandas explícitas con margen mínimo              |
+| D7  | Una búsqueda y una consulta por episodio                                  | Serie resuelta una vez, temporada en una llamada |
+| D8  | Vocabulario del parser incompleto                                         | Vocabulario ampliado                             |
+| D9  | Los tokens de resolución detectados nunca se usan                         | Respaldo declarado cuando falta MediaInfo        |
+| D10 | La doctrina de fuente impedía escribir etiquetas de release               | Se escribe con inferencia y procedencia visible  |
 
 ## 8. Pruebas
 
@@ -416,10 +416,10 @@ Todo debe pasar `pnpm check` (formato, lint sin avisos, pruebas y compilación).
 
 ## 10. Riesgos y mitigaciones
 
-| Riesgo | Mitigación |
-| --- | --- |
+| Riesgo                                                              | Mitigación                                                                                    |
+| ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
 | La inferencia de fuente por bitrate se equivoca en material atípico | La etiqueta del nombre siempre gana; la ficha declara el motivo; corrección manual en un clic |
-| `/search/multi` devuelve resultados de tipo `person` o ruido | Se filtran los tipos no admitidos antes de puntuar |
-| La duración no está disponible en algunos contenedores | La señal solo puntúa cuando existe; su ausencia no penaliza |
-| El recorte del nombre elimina información que se quería conservar | El límite es configurable y el orden de descarte está documentado en Ajustes |
-| El rediseño de la interfaz introduce regresiones en el renombrado | La capa de renombrado y su preflight no se tocan; sus pruebas se mantienen intactas |
+| `/search/multi` devuelve resultados de tipo `person` o ruido        | Se filtran los tipos no admitidos antes de puntuar                                            |
+| La duración no está disponible en algunos contenedores              | La señal solo puntúa cuando existe; su ausencia no penaliza                                   |
+| El recorte del nombre elimina información que se quería conservar   | El límite es configurable y el orden de descarte está documentado en Ajustes                  |
+| El rediseño de la interfaz introduce regresiones en el renombrado   | La capa de renombrado y su preflight no se tocan; sus pruebas se mantienen intactas           |

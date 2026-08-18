@@ -30,6 +30,7 @@ const settingsSchema = z.object({
   includeOtherLanguages: z.boolean().default(true),
   includeSubtitleLanguages: z.boolean().default(false),
   includeProviderId: z.boolean().default(false),
+  nameTargetLength: z.number().int().min(60).max(255).default(120),
   analysisConcurrency: z.number().int().min(1).max(8).default(2),
   autoApplyBand: z.enum(["high", "medium"]).default("high"),
   tmdbApiKey: z.string().default(""),
