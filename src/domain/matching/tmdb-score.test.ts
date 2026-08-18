@@ -9,7 +9,7 @@ describe("TMDb auditable matching", () => {
     );
 
     expect(result.band).toBe("high");
-    expect(result.score).toBe(90);
+    expect(result.score).toBe(110);
     expect(result.components.map((component) => component.code)).toEqual([
       "title-exact",
       "year-exact",
@@ -50,5 +50,46 @@ describe("TMDb auditable matching", () => {
 
     expect(ranked.candidates[0]?.band).toBe("medium");
     expect(ranked.autoSelectedId).toBeUndefined();
+  });
+});
+
+describe("señales duras de desempate", () => {
+  it("la duración separa dos obras con el mismo título y año", () => {
+    const ranked = rankTmdbCandidates({ title: "Dune", year: 2021, runtimeMinutes: 155 }, [
+      { id: 1, title: "Dune", releaseYear: 2021, runtimeMinutes: 155 },
+      { id: 2, title: "Dune", releaseYear: 2021, runtimeMinutes: 60 },
+    ]);
+    expect(ranked.candidates[0]?.candidate.id).toBe(1);
+    expect(ranked.candidates[0]?.score).toBeGreaterThan(ranked.candidates[1]?.score ?? 0);
+  });
+
+  it("penaliza con fuerza una duración muy distinta", () => {
+    const ranked = rankTmdbCandidates({ title: "Heat", runtimeMinutes: 170 }, [
+      { id: 1, title: "Heat", runtimeMinutes: 45 },
+    ]);
+    expect(ranked.candidates[0]?.components.some((component) => component.points <= -40)).toBe(
+      true,
+    );
+  });
+
+  it("suma cuando el idioma original de la obra está entre las pistas", () => {
+    const withLanguage = rankTmdbCandidates({ title: "Heat", audioLanguages: ["es", "en"] }, [
+      { id: 1, title: "Heat", originalLanguage: "en" },
+    ]);
+    const withoutLanguage = rankTmdbCandidates({ title: "Heat" }, [
+      { id: 1, title: "Heat", originalLanguage: "en" },
+    ]);
+    expect(withLanguage.candidates[0]?.score).toBeGreaterThan(
+      withoutLanguage.candidates[0]?.score ?? 0,
+    );
+  });
+
+  it("una duración ausente no penaliza", () => {
+    const ranked = rankTmdbCandidates({ title: "Heat", runtimeMinutes: 170 }, [
+      { id: 1, title: "Heat" },
+    ]);
+    expect(
+      ranked.candidates[0]?.components.every((component) => component.code !== "runtime-different"),
+    ).toBe(true);
   });
 });

@@ -1,7 +1,10 @@
 export interface TmdbMatchQuery {
   readonly title: string;
   readonly year?: number;
+  /** Duración real del archivo. La señal de desempate más fuerte que hay. */
   readonly runtimeMinutes?: number;
+  /** Idiomas base de las pistas de audio (`es`, `en`…). */
+  readonly audioLanguages?: readonly string[];
   readonly previouslySelectedTmdbId?: number;
 }
 
@@ -9,6 +12,7 @@ export interface TmdbMovieCandidate {
   readonly id: number;
   readonly title: string;
   readonly originalTitle?: string;
+  readonly originalLanguage?: string;
   readonly alternativeTitles?: readonly string[];
   readonly releaseYear?: number;
   readonly runtimeMinutes?: number;
@@ -25,6 +29,7 @@ export interface MatchScoreComponent {
     | "year-exact"
     | "year-close"
     | "year-different"
+    | "original-language-present"
     | "runtime-compatible"
     | "runtime-close"
     | "runtime-different"
@@ -58,9 +63,9 @@ export interface MatchScoringOptions {
 }
 
 const DEFAULT_THRESHOLDS: MatchScoreThresholds = {
-  high: 75,
+  high: 80,
   medium: 50,
-  minimumLead: 15,
+  minimumLead: 20,
 };
 
 export const normalizeMovieTitle = (value: string): string =>
@@ -163,23 +168,49 @@ const scoreRawCandidate = (query: TmdbMatchQuery, candidate: TmdbMovieCandidate)
     }
   }
 
-  if (query.runtimeMinutes !== undefined && candidate.runtimeMinutes !== undefined) {
-    const difference = Math.abs(query.runtimeMinutes - candidate.runtimeMinutes);
-    if (difference <= 5) {
+  // La duración es la señal que separa remakes, cortos y episodios sueltos de la
+  // película homónima. Se mide en proporción, no en minutos absolutos: 10 min de
+  // diferencia no significan lo mismo en un corto que en una película de 3 horas.
+  const candidateRuntime = candidate.runtimeMinutes;
+  if (
+    query.runtimeMinutes !== undefined &&
+    candidateRuntime !== undefined &&
+    candidateRuntime > 0
+  ) {
+    const deviation = Math.abs(candidateRuntime - query.runtimeMinutes) / candidateRuntime;
+    if (deviation <= 0.05) {
       components.push({
         code: "runtime-compatible",
-        points: 10,
-        explanation: "Duración compatible: +10",
+        points: 30,
+        explanation: `Duración compatible (${String(candidateRuntime)} min): +30`,
       });
-    } else if (difference <= 15) {
-      components.push({ code: "runtime-close", points: 5, explanation: "Duración próxima: +5" });
-    } else if (difference > 30) {
+    } else if (deviation > 0.2) {
       components.push({
         code: "runtime-different",
-        points: -10,
-        explanation: "Duración incompatible: -10",
+        points: -40,
+        explanation: `Duración muy distinta (${String(candidateRuntime)} min frente a ${String(query.runtimeMinutes)} min): -40`,
+      });
+    } else {
+      components.push({
+        code: "runtime-close",
+        points: 10,
+        explanation: `Duración parecida (${String(candidateRuntime)} min): +10`,
       });
     }
+  }
+
+  // Que el idioma original de la obra esté entre las pistas es una confirmación
+  // barata: un WEB-DL español de una película inglesa casi siempre trae el inglés.
+  const originalLanguage = candidate.originalLanguage?.toLowerCase();
+  if (
+    originalLanguage !== undefined &&
+    query.audioLanguages?.some((language) => language.toLowerCase() === originalLanguage) === true
+  ) {
+    components.push({
+      code: "original-language-present",
+      points: 10,
+      explanation: `El idioma original (${originalLanguage}) está entre las pistas: +10`,
+    });
   }
 
   if (query.previouslySelectedTmdbId === candidate.id) {
