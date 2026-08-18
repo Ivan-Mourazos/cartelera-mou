@@ -42,39 +42,88 @@ Consecuencias prácticas:
 ## Formato del nombre
 
 ```text
-Título España (Año) [CALIDAD/FUENTE · CÓDEC/BITS · HDR] [AUDIO PRINCIPAL · Otros idiomas].ext
+Título (Año) [CLASE RESOLUCIÓN FUENTE CÓDEC BITS HDR] [Audio principal · Otros idiomas].ext
 ```
 
 Ejemplos reales generados por las pruebas:
 
 ```text
-Dune Parte Dos (2024) [4K UHD REMUX · HEVC 10-bit · Dolby Vision + HDR10] [ESP TrueHD Atmos 7.1 · Otros ENG+FRA].mkv
-Heat (1995) [Full HD REMUX · AVC 8-bit] [ESP DTS-HD MA 5.1 · Otros ENG].mkv
-The Batman (2022) [4K UHD WEB-DL · HEVC 10-bit · Dolby Vision] [ESP Dolby Digital Plus 5.1 · Otros ENG].mkv
-Alien (1979) [4K UHD · HEVC 10-bit · HDR10] [ESP DTS-HD MA 5.1 · Otros ENG].mkv
-The Last of Us (2023) - S01E03 - Mucho mucho tiempo [4K UHD WEB-DL · HEVC 10-bit · Dolby Vision] [ESP Dolby Digital Plus 5.1 · Otros ENG].mkv
+Dune Parte Dos (2024) [4K 2160p BluRay REMUX HEVC 10bit DV] [Castellano TrueHD Atmos 7.1 · ENG].mkv
+Heat (1995) [Full HD 1080p BluRay REMUX AVC] [Castellano DTS-HD MA 5.1].mkv
+The Batman (2022) [4K 2160p WEB-DL HEVC 10bit DV] [Castellano DD+ 5.1 · ENG].mkv
+Rec (2007) [HD 720p HDTV AVC] [Castellano DD 5.1].mkv
+La Cosa (1982) [SD 480p DVDRip MPEG-4] [Castellano DD 2.0 · ENG].avi
+The Last of Us (2023) - S01E03 - Mucho mucho tiempo [4K 2160p WEB-DL HEVC 10bit DV] [Castellano DD+ 5.1 · ENG].mkv
 ```
 
-La calidad se presenta en clases legibles (`8K UHD`, `4K UHD`, `DCI 4K`, `QHD`, `Full HD`, `HD`,
-`SD`) calculadas por dimensiones, no por la altura: un UHD recortado a `3840×1608` sigue siendo
-`4K UHD`.
+### Clase comercial y resolución
 
-**Separador de idiomas:** la especificación pedía `/`, pero la barra es un separador de rutas y en
-Windows es un carácter prohibido en nombres de archivo. Se usa `+`, que es legal en todos los
-sistemas; el separador es configurable desde el dominio (`languageSeparator`).
+La clase la decide la **anchura del máster**, no la altura: las películas se recortan verticalmente
+y un UHD real puede medir `3840×1608`. Dentro de una misma clase, la etiqueta en píxeles la marca la
+altura, que es lo que distingue un DVD NTSC (`720×480` ⇒ `480p`) de uno PAL (`720×576` ⇒ `576p`).
 
-## Presets
+| Clase     | Anchura del lado largo | Resolución escrita |
+| --------- | ---------------------- | ------------------ |
+| `8K`      | ≥ 7000                 | `4320p`            |
+| `4K`      | ≥ 3400                 | `2160p`            |
+| `2K`      | 2000 – 3399            | `1440p`            |
+| `Full HD` | 1800 – 1999            | `1080p`            |
+| `HD`      | 1200 – 1799            | `720p`             |
+| `SD`      | < 1200                 | `576p` / `480p`    |
 
-`Profesional` (por defecto), `Compacto`, `Media server` (Plex/Jellyfin/Emby), `Técnico` y
-`Personalizado` con plantillas libres. Tokens disponibles: `{title}`, `{originalTitle}`, `{year}`,
-`{episode}`, `{episodeTitle}`, `{quality}`, `{source}`, `{qualitySource}`, `{videoCodec}`,
-`{bitDepth}`, `{videoCodecBitDepth}`, `{hdr}`, `{hdrShort}`, `{exactResolution}`, `{frameRate}`,
-`{container}`, `{edition}`, `{primaryAudio}`, `{primaryAudioShort}`, `{otherLanguages}`,
-`{otherLanguagesShort}`, `{subtitleLanguages}`, `{providerIdTag}`, `{providerIdBrace}`.
+### Fuente
+
+`BluRay REMUX` · `BluRay` · `UHDRip` · `BDRip` · `BRRip` · `WEB-DL` · `WEBRip` · `HDTV` · `HDTVRip` ·
+`microHD` · `HDRip` · `DVDRip` · `DVDScr` · `SCR` · `TC` · `TS` · `CamRip`
+
+La fuente **no es verificable** leyendo el archivo. Se toma de la etiqueta del nombre y, si el nombre
+no la declara, se deduce del bitrate, el códec y la resolución (más de 60 Mbps en HEVC 2160p es un
+REMUX; menos de 3 Mbps a 720p es una recompresión WEB). Se escribe igualmente —es lo que se espera
+leer— pero la ficha técnica declara siempre de dónde salió, y una corrección manual gana sobre todo.
+
+### Audio
+
+La pista principal se escribe con el idioma en claro (`Castellano`, `Latino`, `Español` cuando la
+región no consta), el códec abreviado como en las publicaciones (`DD`, `DD+`, `TrueHD Atmos`,
+`DTS-HD MA`, `DTS-X`) y los canales. Los demás idiomas van en abreviatura de tres letras separados
+por `+`. Se usa `+` y no `/` porque la barra es un carácter prohibido en nombres de archivo.
+
+### Longitud
+
+Windows admite 255 caracteres por nombre, pero un nombre de 250 es inmanejable. El objetivo del
+producto son **120 caracteres**, configurable. Si se pasa, se descartan bloques por orden de menor
+valor: otros idiomas → profundidad de bits → HDR → códec → canales → clase comercial. Título, año,
+código de episodio y resolución no se descartan nunca.
+
+## Cómo identifica cada obra
+
+Se usan cuatro fuentes de señal, no solo el nombre del archivo:
+
+- El **nombre**: título, año, `SxxExx`, fuente, edición, grupo.
+- El **título del contenedor**: los MKV de release suelen traer dentro el nombre completo, lo que
+  salva a los archivos llamados `01.mkv` o `pelicula.mkv`.
+- La **duración real** del archivo, comparada con la de TMDb.
+- El **nombre de la carpeta**, útil en `Serie/Temporada 1/cap03.mkv`.
+
+La consulta se hace en cascada y se detiene en cuanto un candidato es inequívoco:
+
+1. Identificador incrustado en el nombre (`[imdb-tt0113277]`, `{tmdb-438631}`): consulta directa.
+2. Título y año exacto.
+3. Título y año ±1 — el año del nombre suele ser el del lanzamiento en vídeo, no el del estreno.
+4. Título sin año.
+5. `/search/multi`, que decide por sí mismo si es película o serie.
+6. Título normalizado: sin acentos, sin artículo inicial, sin dominios ni ruido de las webs.
+7. Título de la carpeta.
+
+Los candidatos se puntúan de forma auditable. La duración dentro del ±5 % suma 30 puntos y una
+desviación mayor del 20 % resta 40: es lo que separa un remake, un corto o un episodio suelto de la
+película homónima. Siempre se aplica el mejor candidato, y las alternativas quedan a un clic en la
+propia fila. Cuando corriges una obra a mano, la aplicación lo recuerda para los archivos siguientes.
 
 ## Seguridad del renombrado
 
-- El análisis **nunca** renombra: hay que pulsar el botón.
+- El análisis **nunca** renombra: hay que pulsar el botón y confirmar la previsualización del
+  lote, donde se ve cada `antes → después` y los archivos bloqueados con su motivo.
 - Preflight completo: caracteres y nombres reservados de Windows, longitud, extensión preservada,
   duplicados dentro del lote, destino ya existente y cambios de solo mayúsculas.
 - Solo se usa `FileSystemFileHandle.move()`. **No se copia y borra**: eso podría destruir el archivo
@@ -123,13 +172,14 @@ Este producto usa la API de TMDb, pero no está avalado ni certificado por TMDb.
 src/
 ├── app/            # shell y branding
 ├── domain/         # lógica pura, sin React ni navegador
-│   ├── identification/  # pistas del nombre, modelo de identificación
+│   ├── identification/  # pistas del nombre, identificadores incrustados, modelo
 │   ├── matching/        # puntuación auditable de candidatos
 │   ├── media/           # modelo normalizado, trazabilidad y normalizadores
 │   └── naming/          # plantillas, presets, construcción y reglas de Windows
 ├── features/renamer/    # interfaz y estado de la pantalla
 ├── services/
 │   ├── analysis/        # cliente MediaInfo WASM y cola con concurrencia
+│   ├── identification/  # resolvedor en cascada
 │   ├── providers/       # contrato de proveedor y cliente TMDb
 │   └── rename/          # preflight, ejecución, deshacer y registro
 └── styles/
