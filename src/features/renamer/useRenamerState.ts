@@ -42,6 +42,14 @@ import {
 import { buildRenamePlan, type RenamePlan } from "../../services/rename/plan";
 import { undoRenameBatch } from "../../services/rename/undo";
 import { loadSettings, saveSettings, type AppSettings } from "../../services/settings";
+import type { ProviderCandidateSummary } from "../../domain/identification/types";
+import {
+  countByState,
+  filterItems,
+  rowStateOf,
+  toggleSelection,
+  type ListFilter,
+} from "./row-model";
 
 export interface Progress {
   readonly active: boolean;
@@ -53,6 +61,13 @@ export interface Progress {
 
 const IDLE_PROGRESS: Progress = { active: false, label: "", done: 0, total: 0, current: "" };
 
+export interface Notice {
+  readonly id: string;
+  readonly text: string;
+}
+
+let noticeSequence = 0;
+
 export const useRenamerState = () => {
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
   const [items, setItems] = useState<readonly MediaItem[]>([]);
@@ -60,7 +75,11 @@ export const useRenamerState = () => {
   const [folderName, setFolderName] = useState<string | undefined>(undefined);
   const [existingNames, setExistingNames] = useState<readonly string[]>([]);
   const [progress, setProgress] = useState<Progress>(IDLE_PROGRESS);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notices, setNotices] = useState<readonly Notice[]>([]);
+  const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
+  const [filter, setFilter] = useState<ListFilter>({});
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [undoable, setUndoable] = useState<RenameLogRecord | undefined>(() =>
     latestUndoableBatch(),
   );
@@ -79,6 +98,17 @@ export const useRenamerState = () => {
     setSettings(next);
     saveSettings(next);
     setItems((current) => current.map((item) => recomputeName(item, next)));
+  }, []);
+
+  /** Cola de avisos: un mensaje nuevo no borra el anterior sin haberse leído. */
+  const pushNotice = useCallback((text: string) => {
+    noticeSequence += 1;
+    const id = `notice-${String(noticeSequence)}`;
+    setNotices((current) => [...current, { id, text }]);
+  }, []);
+
+  const dismissNotice = useCallback((id: string) => {
+    setNotices((current) => current.filter((notice) => notice.id !== id));
   }, []);
 
   const patchItem = useCallback((id: string, patch: (item: MediaItem) => MediaItem) => {
@@ -139,14 +169,14 @@ export const useRenamerState = () => {
   const addFiles = useCallback(
     async (picked: readonly PickedFile[], replace: boolean) => {
       if (picked.length === 0) {
-        setNotice("No se encontraron archivos de vídeo compatibles.");
+        pushNotice("No se encontraron archivos de vídeo compatibles.");
         return;
       }
       const created = picked.map((file) => createMediaItem(file, settings));
       setItems((current) => (replace ? created : [...current, ...created]));
       await processItems(created, settings);
     },
-    [processItems, settings],
+    [processItems, pushNotice, settings],
   );
 
   const removeItem = useCallback((id: string) => {
@@ -174,12 +204,12 @@ export const useRenamerState = () => {
       }),
     );
 
-    setNotice(
+    pushNotice(
       attached > 0
         ? `Acceso concedido a ${String(attached)} archivo(s).`
         : "Ninguno de los archivos elegidos coincide con los de la lista.",
     );
-  }, []);
+  }, [pushNotice]);
 
   const clearAll = useCallback(() => {
     cancel();
@@ -187,6 +217,9 @@ export const useRenamerState = () => {
     setDirectory(null);
     setFolderName(undefined);
     setExistingNames([]);
+    setSelected(new Set());
+    setFilter({});
+    setExpandedId(null);
   }, [cancel]);
 
   const setNameOverride = useCallback(
@@ -203,17 +236,17 @@ export const useRenamerState = () => {
   const searchWork = useCallback(
     async (query: string, kind: "movie" | "series"): Promise<readonly ProviderCandidate[]> => {
       if (!provider.available) {
-        setNotice("Añade tu clave de TMDb en la configuración para poder buscar.");
+        pushNotice("Añade tu clave de TMDb en la configuración para poder buscar.");
         return [];
       }
       try {
         return await provider.search({ title: query, kind });
       } catch (error) {
-        setNotice(error instanceof Error ? error.message : "No se pudo buscar en TMDb.");
+        pushNotice(error instanceof Error ? error.message : "No se pudo buscar en TMDb.");
         return [];
       }
     },
-    [provider],
+    [provider, pushNotice],
   );
 
   /** Aplica el resultado elegido a mano: título oficial, año y título de episodio. */
@@ -242,9 +275,27 @@ export const useRenamerState = () => {
         candidate.kind,
         candidate.id,
       );
-      setNotice(`Datos aplicados: ${candidate.spanishTitle} (${String(candidate.year ?? "—")}).`);
+      pushNotice(`Datos aplicados: ${candidate.spanishTitle} (${String(candidate.year ?? "—")}).`);
     },
-    [items, patchItem, provider, settings],
+    [items, patchItem, provider, pushNotice, settings],
+  );
+
+  /** Elegir una de las alternativas ya puntuadas que la fila muestra. */
+  const chooseSummary = useCallback(
+    async (id: string, summary: ProviderCandidateSummary) => {
+      await chooseCandidate(id, {
+        id: summary.id,
+        kind: items.find((entry) => entry.id === id)?.identification.kind ?? "movie",
+        spanishTitle: summary.spanishTitle,
+        originalTitle: summary.originalTitle,
+        originalLanguage: undefined,
+        year: summary.year,
+        runtimeMinutes: undefined,
+        posterUrl: summary.posterUrl,
+        overview: undefined,
+      });
+    },
+    [chooseCandidate, items],
   );
 
   /** Corrección manual de título, año, temporada o episodio. */
@@ -278,6 +329,45 @@ export const useRenamerState = () => {
     [patchItem, settings],
   );
 
+  /** Alterna la selección de una fila, con rango cuando se pulsan mayúsculas. */
+  const toggleSelected = useCallback(
+    (id: string, withRange: boolean) => {
+      setSelected((current) =>
+        toggleSelection(current, id, withRange ? { range: items.map((item) => item.id) } : {}),
+      );
+    },
+    [items],
+  );
+
+  const toggleExpanded = useCallback((id: string) => {
+    setExpandedId((current) => (current === id ? null : id));
+  }, []);
+
+  /** Marca a mano varias filas como película o serie de una vez. */
+  const batchSetKind = useCallback(
+    (kind: "movie" | "series") => {
+      setItems((current) =>
+        current.map((item) =>
+          selected.has(item.id)
+            ? {
+                ...withIdentification(item, setContentKind(item.identification, kind), settings),
+                kindLocked: true,
+              }
+            : item,
+        ),
+      );
+      pushNotice(
+        `${String(selected.size)} archivo(s) marcados como ${kind === "series" ? "serie" : "película"}.`,
+      );
+    },
+    [pushNotice, selected, settings],
+  );
+
+  const removeSelected = useCallback(() => {
+    setItems((current) => current.filter((item) => !selected.has(item.id)));
+    setSelected(new Set());
+  }, [selected]);
+
   /** Solo con una carpeta abierta se puede comprobar si el destino ya existe. */
   const canCheckDestination = directory !== null;
 
@@ -308,7 +398,14 @@ export const useRenamerState = () => {
       : createDirectoryRenamePort(directory, handles);
   }, [directory, items]);
 
-  const renameAll = useCallback(async () => {
+  /** Vuelve a analizar e identificar solo las filas seleccionadas. */
+  const retrySelected = useCallback(async () => {
+    const targets = items.filter((item) => selected.has(item.id));
+    if (targets.length === 0) return;
+    await processItems(targets, settings);
+  }, [items, processItems, selected, settings]);
+
+  const confirmRename = useCallback(async () => {
     // El plan se recalcula a partir del estado actual justo antes de ejecutar.
     const freshPlan = planFor(items);
     const controller = new AbortController();
@@ -362,16 +459,30 @@ export const useRenamerState = () => {
     }
 
     const firstError = result.entries.find((entry) => entry.outcome === "failed")?.error;
-    setNotice(
+    pushNotice(
       result.failed === 0
         ? `Renombrados ${String(result.renamed)} archivo(s).`
         : `Renombrados ${String(result.renamed)}; ${String(result.failed)} con error: ${firstError ?? "desconocido"}`,
     );
-  }, [folderName, items, planFor, portFor]);
+  }, [folderName, items, planFor, portFor, pushNotice]);
+
+  /** Renombrar no escribe nada por sí solo: abre la previsualización. */
+  const openPreview = useCallback(() => {
+    setPreviewOpen(true);
+  }, []);
+
+  const closePreview = useCallback(() => {
+    setPreviewOpen(false);
+  }, []);
+
+  const renameAll = useCallback(async () => {
+    setPreviewOpen(false);
+    await confirmRename();
+  }, [confirmRename]);
 
   const undoLast = useCallback(async () => {
     if (undoable === undefined) {
-      setNotice("No hay ningún renombrado que deshacer.");
+      pushNotice("No hay ningún renombrado que deshacer.");
       return;
     }
 
@@ -395,20 +506,50 @@ export const useRenamerState = () => {
       );
     }
 
-    setNotice(
+    pushNotice(
       `Deshacer: ${String(result.renamed)} restaurados, ${String(result.failed)} con error.`,
     );
-  }, [existingNames, portFor, undoable]);
+  }, [existingNames, portFor, pushNotice, undoable]);
+
+  const planById = useMemo(() => new Map(plan.items.map((item) => [item.id, item])), [plan]);
+
+  const counts = useMemo(
+    () => countByState(items.map((item) => rowStateOf(item, planById.get(item.id)))),
+    [items, planById],
+  );
+
+  const visibleItems = useMemo(
+    () => filterItems(items, filter, planById),
+    [filter, items, planById],
+  );
 
   return {
     settings,
     updateSettings,
     items,
+    visibleItems,
+    planById,
+    counts,
+    filter,
+    setFilter,
+    selected,
+    toggleSelected,
+    setSelected,
+    expandedId,
+    toggleExpanded,
+    batchSetKind,
+    removeSelected,
+    retrySelected,
+    previewOpen,
+    openPreview,
+    closePreview,
+    chooseSummary,
+    notices,
+    pushNotice,
+    dismissNotice,
     plan,
     canCheckDestination,
     progress,
-    notice,
-    setNotice,
     undoable,
     provider,
     folderName,

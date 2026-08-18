@@ -15,19 +15,10 @@ const STORAGE_KEY = "renombrador.settings.v1";
 const presetIds = ["professional", "compact", "media-server", "technical", "custom"] as const;
 
 const settingsSchema = z.object({
-  metadataLanguage: z.string().default("es-ES"),
-  metadataRegion: z.string().default("ES"),
   presetId: z.enum(presetIds).default("professional"),
   customMovieTemplate: z.string().default(findPreset("professional").movieTemplate),
   customEpisodeTemplate: z.string().default(findPreset("professional").episodeTemplate),
-  includeYear: z.boolean().default(true),
-  includeQuality: z.boolean().default(true),
   includeSource: z.boolean().default(true),
-  includeVideoCodec: z.boolean().default(true),
-  includeBitDepth: z.boolean().default(true),
-  includeHdr: z.boolean().default(true),
-  includePrimaryAudio: z.boolean().default(true),
-  includeOtherLanguages: z.boolean().default(true),
   includeSubtitleLanguages: z.boolean().default(false),
   includeProviderId: z.boolean().default(false),
   nameTargetLength: z.number().int().min(60).max(255).default(120),

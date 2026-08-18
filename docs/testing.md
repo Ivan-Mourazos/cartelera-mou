@@ -53,3 +53,55 @@ ni modifican archivos reales.
 - Análisis de un MKV real con MediaInfo WASM: los normalizadores se prueban con fixtures que
   reproducen la salida documentada de MediaInfo.
 - Rendimiento con bibliotecas de miles de archivos.
+
+---
+
+## Verificación manual de la interfaz (2026-08-18)
+
+Estas listas cubren lo que las pruebas automáticas no pueden: el flujo real con archivos en disco.
+Ejecuta `pnpm dev` en un navegador basado en Chromium.
+
+### Lista de archivos
+
+1. Cargar tres archivos: uno con nombre de release completo, uno con el nombre destrozado y uno que
+   no exista en TMDb.
+2. El primero muestra punto verde y no necesita abrirse.
+3. El segundo muestra punto ámbar y, al desplegarlo, la lista de candidatos con póster ya cargada.
+4. Elegir un candidato cambia el nombre propuesto al instante y el punto pasa a verde.
+5. El tercero muestra punto rojo con el buscador desplegado y el título limpio ya escrito.
+6. Las alertas del nombre (sin castellano, sin resolución, fuente deducida) aparecen en el detalle.
+
+### Barra de lista
+
+1. Con 60 archivos cargados, la lista se desplaza con fluidez y el DOM solo contiene las filas
+   visibles más el margen de la virtualización.
+2. Pulsar el contador «Revisar» deja en pantalla solo las filas ámbar.
+3. Escribir en el filtro reduce la lista por nombre actual y por nombre propuesto.
+4. Seleccionar dos filas (clic en el punto de estado, `Mayús` para rango) y pulsar «Serie» cambia
+   ambas.
+5. «Reintentar» vuelve a analizar e identificar solo las filas seleccionadas.
+
+### Previsualización y renombrado
+
+1. Pulsar «Renombrar» **no** toca el disco: abre un diálogo.
+2. El diálogo lista cada archivo como `antes → después` y separa los bloqueados con su motivo.
+3. `Esc` y «Cancelar» cierran sin renombrar nada.
+4. «Renombrar N» ejecuta y el recuento coincide con el de archivos renombrados.
+5. «Deshacer» restaura los nombres anteriores.
+
+### Ficha técnica
+
+1. Desplegar el detalle de un archivo analizado y abrir «Ficha técnica».
+2. Cada dato muestra su valor, su confianza y su motivo, con el borde izquierdo coloreado según la
+   procedencia.
+3. La resolución explica por qué se eligió la clase (`3840×1608: anchura 3840 ⇒ 4K`).
+4. La fuente indica si vino del nombre o del bitrate.
+5. Aparece la traza de identificación: qué consultas se lanzaron y en qué orden.
+
+### Ajustes
+
+1. El panel se abre como diálogo modal, se cierra con `Esc` y el tabulador no se sale de él.
+2. «Comprobar clave» informa del resultado real de una consulta a TMDb.
+3. El preset «Personalizado» permite editar las dos plantillas y lista los tokens disponibles.
+4. Cambiar la longitud objetivo recalcula todos los nombres propuestos al instante.
+5. «Olvidar correcciones aprendidas» vacía la memoria de emparejados manuales.

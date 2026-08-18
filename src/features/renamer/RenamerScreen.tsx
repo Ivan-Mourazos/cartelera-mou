@@ -1,5 +1,14 @@
-import { FileText, FolderOpen, Loader2, Settings, Trash2, Undo2, Zap } from "lucide-react";
-import { useMemo, useState, type DragEvent } from "react";
+import {
+  FileText,
+  FolderOpen,
+  KeyRound,
+  Loader2,
+  Settings,
+  Trash2,
+  Undo2,
+  Zap,
+} from "lucide-react";
+import { useRef, useState, type DragEvent } from "react";
 
 import {
   filesFromDataTransfer,
@@ -7,19 +16,23 @@ import {
   openFilesPicker,
   supportsDirectRename,
 } from "../../services/file-system";
-import { MediaItemCard } from "./MediaItemCard";
+import { BatchPreviewDialog } from "./BatchPreviewDialog";
+import { FileRow } from "./FileRow";
+import { ListToolbar } from "./ListToolbar";
+import { RowDetail } from "./RowDetail";
+import { rowStateOf } from "./row-model";
 import { SettingsPanel } from "./SettingsPanel";
 import { useRenamerState } from "./useRenamerState";
+import { VirtualFileList } from "./VirtualFileList";
+
+/** A partir de aquí la lista se virtualiza. Por debajo no compensa. */
+const VIRTUALIZE_FROM = 50;
 
 export function RenamerScreen() {
   const state = useRenamerState();
   const [showSettings, setShowSettings] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-
-  const planById = useMemo(
-    () => new Map(state.plan.items.map((item) => [item.id, item])),
-    [state.plan],
-  );
+  const listRef = useRef<HTMLDivElement>(null);
 
   const openFolder = async (): Promise<void> => {
     const result = await openDirectoryPicker();
@@ -47,8 +60,48 @@ export function RenamerScreen() {
       event.preventDefault();
       setDragOver(true);
     },
-    onDragLeave: () => setDragOver(false),
+    onDragLeave: () => {
+      setDragOver(false);
+    },
     onDrop: (event: DragEvent<HTMLDivElement>) => void onDrop(event),
+  };
+
+  const visible = state.visibleItems;
+  const virtualized = visible.length >= VIRTUALIZE_FROM;
+
+  const renderRow = (index: number) => {
+    const item = visible[index];
+    if (item === undefined) return null;
+    const planItem = state.planById.get(item.id);
+    const expanded = state.expandedId === item.id;
+
+    return (
+      <article key={item.id} className="file-entry">
+        <FileRow
+          item={item}
+          state={rowStateOf(item, planItem)}
+          selected={state.selected.has(item.id)}
+          expanded={expanded}
+          onToggleExpanded={state.toggleExpanded}
+          onToggleSelected={state.toggleSelected}
+          onOverrideName={state.setNameOverride}
+          onRemove={state.removeItem}
+        />
+        {expanded ? (
+          <RowDetail
+            item={item}
+            planItem={planItem}
+            onEditField={state.editIdentification}
+            onSetKind={state.setKind}
+            onSetSource={state.setSource}
+            onSearch={state.searchWork}
+            onChooseCandidate={(id, candidate) => void state.chooseCandidate(id, candidate)}
+            onChooseSummary={(id, candidate) => void state.chooseSummary(id, candidate)}
+            onGrantAccess={() => void state.grantAccess()}
+          />
+        ) : null}
+      </article>
+    );
   };
 
   return (
@@ -56,8 +109,19 @@ export function RenamerScreen() {
       {showSettings ? (
         <SettingsPanel
           settings={state.settings}
+          provider={state.provider}
           onChange={state.updateSettings}
-          onClose={() => setShowSettings(false)}
+          onClose={() => {
+            setShowSettings(false);
+          }}
+        />
+      ) : null}
+
+      {state.previewOpen ? (
+        <BatchPreviewDialog
+          plan={state.plan}
+          onConfirm={() => void state.renameAll()}
+          onCancel={state.closePreview}
         />
       ) : null}
 
@@ -65,8 +129,7 @@ export function RenamerScreen() {
         <div className={`dropzone-container ${dragOver ? "is-dragover" : ""}`} {...dropHandlers}>
           <div className="dropzone-title">Arrastra tus vídeos aquí</div>
           <div className="dropzone-subtitle">
-            Se analiza el archivo de verdad y se propone un nombre. Puedes editarlo antes de
-            renombrar.
+            Se lee el archivo de verdad y se propone un nombre. Puedes editarlo antes de renombrar.
           </div>
           <div className="dropzone-actions">
             <button
@@ -86,11 +149,31 @@ export function RenamerScreen() {
             <button
               type="button"
               className="apple-button apple-button-ghost"
-              onClick={() => setShowSettings(true)}
+              onClick={() => {
+                setShowSettings(true);
+              }}
+              title="Configuración"
             >
               <Settings size={16} aria-hidden />
             </button>
           </div>
+
+          {state.provider.available ? null : (
+            <p className="dropzone-warning">
+              <KeyRound size={13} aria-hidden /> Sin clave de TMDb los títulos salen del nombre del
+              archivo.{" "}
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => {
+                  setShowSettings(true);
+                }}
+              >
+                Añadir clave
+              </button>
+            </p>
+          )}
+
           {supportsDirectRename() ? null : (
             <p className="dropzone-warning">
               Este navegador no puede renombrar archivos. Usa Chrome, Edge u otro navegador basado
@@ -129,7 +212,9 @@ export function RenamerScreen() {
               <button
                 type="button"
                 className="apple-button apple-button-ghost"
-                onClick={() => setShowSettings((value) => !value)}
+                onClick={() => {
+                  setShowSettings((value) => !value);
+                }}
                 title="Configuración"
               >
                 <Settings size={15} aria-hidden />
@@ -145,6 +230,17 @@ export function RenamerScreen() {
             </div>
           </div>
 
+          <ListToolbar
+            counts={state.counts}
+            total={state.items.length}
+            filter={state.filter}
+            onFilter={state.setFilter}
+            selectedCount={state.selected.size}
+            onBatchKind={state.batchSetKind}
+            onRetrySelected={() => void state.retrySelected()}
+            onRemoveSelected={state.removeSelected}
+          />
+
           {state.canCheckDestination ? null : (
             <p className="settings-warning">
               Con archivos sueltos no se puede comprobar si ya existe otro archivo con el nombre
@@ -152,29 +248,25 @@ export function RenamerScreen() {
             </p>
           )}
 
-          <div className={`file-list ${dragOver ? "is-dragover" : ""}`} {...dropHandlers}>
-            {state.items.map((item) => (
-              <MediaItemCard
-                key={item.id}
-                item={item}
-                planItem={planById.get(item.id)}
-                onRemove={state.removeItem}
-                onOverrideName={state.setNameOverride}
-                onGrantAccess={() => void state.grantAccess()}
-                onEditField={state.editIdentification}
-                onSetKind={state.setKind}
-                onSetSource={state.setSource}
-                onSearch={state.searchWork}
-                onChooseCandidate={(id, candidate) => void state.chooseCandidate(id, candidate)}
-              />
-            ))}
+          <div
+            ref={listRef}
+            className={`file-list ${dragOver ? "is-dragover" : ""}`}
+            {...dropHandlers}
+          >
+            {visible.length === 0 ? (
+              <p className="list-empty">Ningún archivo coincide con el filtro.</p>
+            ) : virtualized ? (
+              <VirtualFileList count={visible.length} scrollRef={listRef} renderRow={renderRow} />
+            ) : (
+              visible.map((_, index) => renderRow(index))
+            )}
           </div>
 
           <div className="floating-dock">
             <button
               type="button"
               className="apple-button apple-button-primary"
-              onClick={() => void state.renameAll()}
+              onClick={state.openPreview}
               disabled={state.plan.readyCount === 0 || state.progress.active}
             >
               <Zap size={15} aria-hidden /> Renombrar {state.plan.readyCount}
@@ -192,12 +284,23 @@ export function RenamerScreen() {
         </>
       )}
 
-      {state.notice === null ? null : (
-        <div className="toast" role="status" aria-live="polite">
-          {state.notice}
-          <button type="button" className="icon-button" onClick={() => state.setNotice(null)}>
-            ×
-          </button>
+      {state.notices.length === 0 ? null : (
+        <div className="toast-stack" role="status" aria-live="polite">
+          {state.notices.map((notice) => (
+            <div key={notice.id} className="toast">
+              {notice.text}
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="Descartar aviso"
+                onClick={() => {
+                  state.dismissNotice(notice.id);
+                }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
