@@ -16,8 +16,8 @@ export type NameTokenName =
   | "episode"
   | "episodeTitle"
   | "quality"
+  | "resolutionLabel"
   | "source"
-  | "qualitySource"
   | "videoCodec"
   | "bitDepth"
   | "videoCodecBitDepth"
@@ -44,8 +44,8 @@ export const ALL_NAME_TOKENS: readonly NameTokenName[] = [
   "episode",
   "episodeTitle",
   "quality",
+  "resolutionLabel",
   "source",
-  "qualitySource",
   "videoCodec",
   "bitDepth",
   "videoCodecBitDepth",
