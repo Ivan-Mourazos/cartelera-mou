@@ -1,12 +1,15 @@
+import type { CommercialClass, PixelLabel, ReleaseSource } from "../naming/release-labels";
 import type { Traced } from "./provenance";
 
 // ── Vídeo ───────────────────────────────────────────────────────────────
 
 /** Clase de calidad presentable. Se calcula por dimensiones, nunca por el nombre. */
-export type QualityClass = "8K UHD" | "DCI 4K" | "4K UHD" | "QHD" | "Full HD" | "HD" | "SD";
+export type QualityClass = CommercialClass;
 
 export interface ResolutionClassification {
-  readonly quality: QualityClass;
+  readonly quality: CommercialClass;
+  /** Resolución en píxeles verticales del máster: `2160p`, `1080p`… */
+  readonly pixelLabel: PixelLabel;
   readonly width: number;
   readonly height: number;
   /** Explicación auditable de por qué se eligió esa clase. */
@@ -131,7 +134,7 @@ export interface GeneralInfo {
 
 // ── Fuente ──────────────────────────────────────────────────────────────
 
-export type SourceMedia = "UHD Blu-ray" | "Blu-ray" | "WEB-DL" | "WEBRip" | "HDTV" | "DVD";
+export type SourceMedia = Exclude<ReleaseSource, "BluRay REMUX">;
 export type SourceType = "REMUX" | "ENCODE";
 
 export interface SourceInfo {

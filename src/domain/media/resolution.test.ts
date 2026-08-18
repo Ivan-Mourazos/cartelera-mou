@@ -1,55 +1,49 @@
 import { describe, expect, it } from "vitest";
 
 import { classifyResolution } from "./resolution";
-import type { QualityClass } from "./types";
 
-const quality = (width: number, height: number): QualityClass | undefined =>
-  classifyResolution(width, height)?.quality;
-
-describe("clasificación de resolución por clases", () => {
-  it.each<[number, number, QualityClass]>([
-    [7680, 4320, "8K UHD"],
-    [4096, 2160, "DCI 4K"],
-    [3840, 2160, "4K UHD"],
-    [3840, 1608, "4K UHD"],
-    [3840, 1634, "4K UHD"],
-    [3840, 1716, "4K UHD"],
-    [2560, 1440, "QHD"],
-    [2048, 1080, "Full HD"],
-    [1920, 1080, "Full HD"],
-    [1920, 800, "Full HD"],
-    [1920, 816, "Full HD"],
-    [1280, 720, "HD"],
-    [1280, 536, "HD"],
-    [720, 576, "SD"],
-    [720, 480, "SD"],
-  ])("%i×%i ⇒ %s", (width, height, expected) => {
-    expect(quality(width, height)).toBe(expected);
+describe("classifyResolution", () => {
+  it("clasifica por anchura del máster, no por altura", () => {
+    // UHD recortado a 2.39:1: sigue siendo 4K / 2160p.
+    expect(classifyResolution(3840, 1608)).toMatchObject({ quality: "4K", pixelLabel: "2160p" });
+    expect(classifyResolution(3840, 2160)).toMatchObject({ quality: "4K", pixelLabel: "2160p" });
   });
 
-  it("no clasifica un UHD recortado como 1440p por su altura", () => {
-    expect(quality(3840, 1608)).not.toBe("QHD");
+  it("clasifica las bandas restantes", () => {
+    expect(classifyResolution(7680, 4320)).toMatchObject({ quality: "8K", pixelLabel: "4320p" });
+    expect(classifyResolution(2560, 1440)).toMatchObject({ quality: "2K", pixelLabel: "1440p" });
+    expect(classifyResolution(2048, 858)).toMatchObject({ quality: "2K", pixelLabel: "1440p" });
+    expect(classifyResolution(1920, 1080)).toMatchObject({
+      quality: "Full HD",
+      pixelLabel: "1080p",
+    });
+    expect(classifyResolution(1280, 720)).toMatchObject({ quality: "HD", pixelLabel: "720p" });
+    expect(classifyResolution(720, 576)).toMatchObject({ quality: "SD", pixelLabel: "576p" });
+    expect(classifyResolution(640, 480)).toMatchObject({ quality: "SD", pixelLabel: "480p" });
   });
 
-  it("distingue DCI 4K de UHD", () => {
-    expect(quality(4096, 2160)).toBe("DCI 4K");
-    expect(quality(3840, 2160)).toBe("4K UHD");
+  it("corrige al alza el contenido anamórfico", () => {
+    // 1440×1080 es 4:3 anamórfico: la altura manda.
+    expect(classifyResolution(1440, 1080)).toMatchObject({
+      quality: "Full HD",
+      pixelLabel: "1080p",
+    });
   });
 
-  it("corrige al alza el contenido anamórfico 1440×1080", () => {
-    expect(quality(1440, 1080)).toBe("Full HD");
+  it("trata el contenido vertical por su lado largo", () => {
+    expect(classifyResolution(1080, 1920)).toMatchObject({
+      quality: "Full HD",
+      pixelLabel: "1080p",
+    });
   });
 
-  it("conserva las dimensiones exactas y explica la decisión", () => {
-    const classification = classifyResolution(3840, 1608);
-    expect(classification?.width).toBe(3840);
-    expect(classification?.height).toBe(1608);
-    expect(classification?.reason).toContain("3840");
-  });
-
-  it("devuelve undefined sin dimensiones utilizables", () => {
-    expect(classifyResolution(undefined, 2160)).toBeUndefined();
+  it("no decide nada sin dimensiones utilizables", () => {
+    expect(classifyResolution(undefined, 1080)).toBeUndefined();
     expect(classifyResolution(0, 0)).toBeUndefined();
     expect(classifyResolution(Number.NaN, 1080)).toBeUndefined();
+  });
+
+  it("explica siempre por qué eligió esa clase", () => {
+    expect(classifyResolution(3840, 1608)?.reason).toContain("3840");
   });
 });

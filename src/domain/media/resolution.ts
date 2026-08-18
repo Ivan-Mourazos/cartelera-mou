@@ -1,59 +1,52 @@
-import type { QualityClass, ResolutionClassification } from "./types";
+import type { CommercialClass, PixelLabel } from "../naming/release-labels";
+import type { ResolutionClassification } from "./types";
 
 /**
  * Clasificación de calidad por CLASE de resolución, no por altura.
  *
  * Las películas se recortan verticalmente (2.39:1, 2.20:1, 1.90:1…): un UHD real
  * puede medir 3840×1608. Usar `height === 2160` clasificaría mal la mayor parte
- * del catálogo cinematográfico. Por eso la clase se decide por la anchura, que
- * es la dimensión estable del master, y solo se corrige al alza cuando la altura
+ * del catálogo cinematográfico. Por eso la clase la decide la anchura, que es la
+ * dimensión estable del máster, y solo se corrige al alza cuando la altura
  * indica una clase superior (contenido anamórfico o con pillarbox, p. ej.
  * 1440×1080).
  */
 
-interface WidthBand {
-  readonly quality: QualityClass;
+interface Band {
+  readonly quality: CommercialClass;
+  readonly pixelLabel: PixelLabel;
   readonly minWidth: number;
-  readonly label: string;
+  readonly minHeight: number;
 }
 
-const WIDTH_BANDS: readonly WidthBand[] = [
-  { quality: "8K UHD", minWidth: 7000, label: "clase 7680 de anchura" },
-  { quality: "DCI 4K", minWidth: 4000, label: "clase DCI 4096 de anchura" },
-  { quality: "4K UHD", minWidth: 3400, label: "clase 3840 de anchura" },
-  { quality: "QHD", minWidth: 2400, label: "clase 2560 de anchura" },
-  { quality: "Full HD", minWidth: 1800, label: "clase 1920 de anchura" },
-  { quality: "HD", minWidth: 1200, label: "clase 1280 de anchura" },
-  { quality: "SD", minWidth: 1, label: "clase SD" },
+const BANDS: readonly Band[] = [
+  { quality: "8K", pixelLabel: "4320p", minWidth: 7000, minHeight: 4000 },
+  { quality: "4K", pixelLabel: "2160p", minWidth: 3400, minHeight: 1900 },
+  { quality: "2K", pixelLabel: "1440p", minWidth: 2000, minHeight: 1300 },
+  { quality: "Full HD", pixelLabel: "1080p", minWidth: 1800, minHeight: 1000 },
+  { quality: "HD", pixelLabel: "720p", minWidth: 1200, minHeight: 700 },
+  { quality: "SD", pixelLabel: "576p", minWidth: 700, minHeight: 500 },
+  { quality: "SD", pixelLabel: "480p", minWidth: 1, minHeight: 1 },
 ];
 
-const HEIGHT_BANDS: readonly { quality: QualityClass; minHeight: number }[] = [
-  { quality: "8K UHD", minHeight: 4000 },
-  { quality: "4K UHD", minHeight: 1900 },
-  { quality: "QHD", minHeight: 1300 },
-  { quality: "Full HD", minHeight: 1000 },
-  { quality: "HD", minHeight: 700 },
-  { quality: "SD", minHeight: 1 },
-];
-
-const RANK: Readonly<Record<QualityClass, number>> = {
+const RANK: Readonly<Record<CommercialClass, number>> = {
   SD: 1,
   HD: 2,
   "Full HD": 3,
-  QHD: 4,
-  "4K UHD": 5,
-  "DCI 4K": 5,
-  "8K UHD": 6,
+  "2K": 4,
+  "4K": 5,
+  "8K": 6,
 };
 
-const bandForWidth = (width: number): WidthBand =>
-  WIDTH_BANDS.find((band) => width >= band.minWidth) ??
-  ({ quality: "SD", minWidth: 1, label: "clase SD" } satisfies WidthBand);
+const FALLBACK: Band = { quality: "SD", pixelLabel: "480p", minWidth: 1, minHeight: 1 };
 
-const qualityForHeight = (height: number): QualityClass =>
-  HEIGHT_BANDS.find((band) => height >= band.minHeight)?.quality ?? "SD";
+const bandForWidth = (width: number): Band =>
+  BANDS.find((band) => width >= band.minWidth) ?? FALLBACK;
 
-const isPositiveInteger = (value: number): boolean => Number.isFinite(value) && value > 0;
+const bandForHeight = (height: number): Band =>
+  BANDS.find((band) => height >= band.minHeight) ?? FALLBACK;
+
+const isPositiveNumber = (value: number): boolean => Number.isFinite(value) && value > 0;
 
 /**
  * Devuelve la clase de calidad, o `undefined` cuando las dimensiones no permiten
@@ -64,31 +57,24 @@ export const classifyResolution = (
   height: number | undefined,
 ): ResolutionClassification | undefined => {
   if (width === undefined || height === undefined) return undefined;
-  if (!isPositiveInteger(width) || !isPositiveInteger(height)) return undefined;
+  if (!isPositiveNumber(width) || !isPositiveNumber(height)) return undefined;
 
-  // Contenido vertical o pistas con dimensiones intercambiadas: la clase la marca
-  // la dimensión mayor.
+  // Contenido vertical o pistas con dimensiones intercambiadas: manda el lado mayor.
   const longEdge = Math.max(width, height);
   const shortEdge = Math.min(width, height);
 
-  const widthBand = bandForWidth(longEdge);
-  const heightQuality = qualityForHeight(shortEdge);
-
-  const useHeight = RANK[heightQuality] > RANK[widthBand.quality];
-  const quality = useHeight ? heightQuality : widthBand.quality;
+  const byWidth = bandForWidth(longEdge);
+  const byHeight = bandForHeight(shortEdge);
+  const useHeight = RANK[byHeight.quality] > RANK[byWidth.quality];
+  const band = useHeight ? byHeight : byWidth;
 
   const reason = useHeight
-    ? `${width}×${height}: la altura ${String(shortEdge)} corresponde a ${heightQuality} (contenido anamórfico o con bandas laterales)`
-    : `${width}×${height}: ${widthBand.label} ⇒ ${widthBand.quality}`;
+    ? `${String(width)}×${String(height)}: la altura ${String(shortEdge)} corresponde a ${byHeight.quality} (contenido anamórfico o con bandas laterales)`
+    : `${String(width)}×${String(height)}: anchura ${String(longEdge)} ⇒ ${byWidth.quality}`;
 
-  const dciNote =
-    quality === "Full HD" && longEdge >= 2000 && longEdge < 2400
-      ? `${reason}. Variante DCI 2K`
-      : reason;
-
-  return { quality, width, height, reason: dciNote };
+  return { quality: band.quality, pixelLabel: band.pixelLabel, width, height, reason };
 };
 
 /** Presentación exacta para la ficha técnica. */
 export const formatExactResolution = (classification: ResolutionClassification): string =>
-  `${classification.width} × ${classification.height}`;
+  `${String(classification.width)} × ${String(classification.height)}`;
