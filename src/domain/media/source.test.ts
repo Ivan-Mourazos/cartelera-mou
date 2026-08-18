@@ -1,72 +1,74 @@
 import { describe, expect, it } from "vitest";
 
-import { composeQualitySource, detectSourceFromFilename } from "./source";
-import type { QualityClass } from "./types";
+import { composeSourceLabel, describeSourceDetail, detectSourceFromFilename } from "./source";
 
-describe("detección de fuente desde el nombre", () => {
-  it.each([
-    ["Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX.HEVC.mkv", "UHD Blu-ray", "REMUX"],
-    ["Heat.1995.1080p.BluRay.REMUX.AVC.mkv", "Blu-ray", "REMUX"],
-    ["The.Batman.2022.2160p.WEB-DL.DDP5.1.mkv", "WEB-DL", undefined],
-    ["Serie.S01E01.1080p.WEBRip.x264.mkv", "WEBRip", undefined],
-    ["Programa.2019.720p.HDTV.x264.mkv", "HDTV", undefined],
-    ["Pelicula.2001.DVDRip.XviD.avi", "DVD", undefined],
-  ])("%s", (filename, media, type) => {
-    const source = detectSourceFromFilename(filename);
-    expect(source.media.value).toBe(media);
-    expect(source.type.value).toBe(type);
+describe("detectSourceFromFilename — vocabulario ampliado", () => {
+  const cases: readonly (readonly [string, string | undefined, boolean])[] = [
+    ["Peli.2024.2160p.UHD.BluRay.REMUX.HEVC-GRP.mkv", "BluRay", true],
+    ["Peli.2024.1080p.BluRay.x264-GRP.mkv", "BluRay", false],
+    ["Peli.2024.1080p.BDRip.x264-GRP.mkv", "BDRip", false],
+    ["Peli.2024.1080p.BRRip.XviD-GRP.avi", "BRRip", false],
+    ["Peli.2024.2160p.UHDRip.HEVC-GRP.mkv", "UHDRip", false],
+    ["Peli.2024.1080p.WEB-DL.DDP5.1-GRP.mkv", "WEB-DL", false],
+    ["Peli.2024.1080p.AMZN.WEB.DDP5.1-GRP.mkv", "WEB-DL", false],
+    ["Peli.2024.1080p.WEBRip.x264-GRP.mkv", "WEBRip", false],
+    ["Serie.S01E01.720p.HDTV.x264-GRP.mkv", "HDTV", false],
+    ["Serie.S01E01.720p.HDTVRip.x264-GRP.mkv", "HDTVRip", false],
+    ["Peli.2024.MicroHD.1080p.AC3-GRP.mkv", "microHD", false],
+    ["Peli.2024.HDRip.XviD-GRP.avi", "HDRip", false],
+    ["Peli.2024.DVDRip.XviD-GRP.avi", "DVDRip", false],
+    ["Peli.2024.DVDScr.XviD-GRP.avi", "DVDScr", false],
+    ["Peli.2024.HDTS.XviD-GRP.avi", "TS", false],
+    ["Peli.2024.HDCAM.XviD-GRP.avi", "CamRip", false],
+    ["Peli.2024.CAM.XviD-GRP.avi", "CamRip", false],
+    ["Peli.2024.HDTC.XviD-GRP.avi", "TC", false],
+  ];
+
+  for (const [filename, media, isRemux] of cases) {
+    it(`reconoce ${String(media)} en ${filename}`, () => {
+      const source = detectSourceFromFilename(filename);
+      expect(source.media.value).toBe(media);
+      expect(source.type.value === "REMUX").toBe(isRemux);
+    });
+  }
+
+  it("nunca marca la fuente como confirmada: el archivo no la demuestra", () => {
+    expect(detectSourceFromFilename("Peli.2024.1080p.BluRay.mkv").media.confidence).toBe(
+      "INFERRED",
+    );
   });
 
-  it("sin etiquetas de fuente el dato queda desconocido", () => {
-    const source = detectSourceFromFilename("Alien.1979.2160p.HEVC.mkv");
-    expect(source.media.value).toBeUndefined();
-    expect(source.media.confidence).toBe("UNKNOWN");
-    expect(source.type.value).toBeUndefined();
-  });
-
-  it("la fuente extraída del nombre es INFERRED, nunca CONFIRMED", () => {
-    const source = detectSourceFromFilename("Dune.2021.2160p.UHD.BluRay.REMUX.mkv");
-    expect(source.media.confidence).toBe("INFERRED");
-    expect(source.type.confidence).toBe("INFERRED");
-    expect(source.media.source).toBe("ORIGINAL_FILENAME");
-    expect(source.type.note).toContain("No verificable");
+  it("no inventa fuente cuando el nombre no la declara", () => {
+    expect(detectSourceFromFilename("Peli.2024.1080p.mkv").media.value).toBeUndefined();
   });
 });
 
-describe("qualitySource", () => {
-  const source = (media?: string, type?: string) =>
-    detectSourceFromFilename(
-      `X.2020.${media === undefined ? "" : `${media}.`}${type === undefined ? "" : `${type}.`}mkv`,
+describe("composeSourceLabel", () => {
+  it("une Blu-ray y REMUX en la etiqueta que se usa en las publicaciones", () => {
+    const source = detectSourceFromFilename("Peli.2024.2160p.BluRay.REMUX.mkv");
+    expect(composeSourceLabel(source)).toBe("BluRay REMUX");
+  });
+
+  it("devuelve la fuente a secas cuando no es un REMUX", () => {
+    expect(composeSourceLabel(detectSourceFromFilename("Peli.2024.1080p.WEB-DL.mkv"))).toBe(
+      "WEB-DL",
     );
-
-  it.each<[QualityClass, string | undefined, string | undefined, string]>([
-    ["4K UHD", "UHD.BluRay", "REMUX", "4K UHD REMUX"],
-    ["Full HD", "BluRay", "REMUX", "Full HD REMUX"],
-    ["4K UHD", "WEB-DL", undefined, "4K UHD WEB-DL"],
-    ["Full HD", "WEB-DL", undefined, "Full HD WEB-DL"],
-    ["Full HD", "BluRay", undefined, "Full HD Blu-ray"],
-    ["HD", "WEB-DL", undefined, "HD WEB-DL"],
-  ])("%s + %s/%s ⇒ %s", (quality, media, type, expected) => {
-    expect(composeQualitySource(quality, source(media, type))).toBe(expected);
   });
 
-  it("sin fuente conocida solo se muestra la calidad, nunca «UNKNOWN»", () => {
-    const result = composeQualitySource("4K UHD", detectSourceFromFilename("X.2020.mkv"));
-    expect(result).toBe("4K UHD");
-    expect(result).not.toContain("UNKNOWN");
+  it("no escribe nada cuando no hay evidencia de fuente", () => {
+    expect(composeSourceLabel(detectSourceFromFilename("Peli.2024.1080p.mkv"))).toBeUndefined();
   });
 
-  it("no repite «UHD» cuando la calidad ya lo dice", () => {
-    expect(composeQualitySource("4K UHD", source("UHD.BluRay", undefined))).toBe("4K UHD Blu-ray");
+  it("omite la fuente inferida cuando se le pide no usarla", () => {
+    const source = detectSourceFromFilename("Peli.2024.1080p.BluRay.mkv");
+    expect(composeSourceLabel(source, { allowInferred: false })).toBeUndefined();
   });
+});
 
-  it("puede excluirse la fuente inferida", () => {
-    expect(
-      composeQualitySource("4K UHD", source("UHD.BluRay", "REMUX"), { allowInferred: false }),
-    ).toBe("4K UHD");
-  });
-
-  it("sin calidad no hay campo", () => {
-    expect(composeQualitySource(undefined, source("BluRay", "REMUX"))).toBeUndefined();
+describe("describeSourceDetail", () => {
+  it("describe la fuente completa para la ficha técnica", () => {
+    expect(describeSourceDetail(detectSourceFromFilename("Peli.2024.BluRay.REMUX.mkv"))).toBe(
+      "BluRay REMUX",
+    );
   });
 });

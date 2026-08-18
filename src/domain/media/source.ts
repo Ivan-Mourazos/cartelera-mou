@@ -1,24 +1,25 @@
+import { ALL_RELEASE_SOURCES } from "../naming/release-labels";
 import { parseMediaFilename } from "../naming/parser";
 import { inferred, unknown, type Traced } from "./provenance";
-import type { QualityClass, SourceInfo, SourceMedia, SourceType } from "./types";
+import type { SourceInfo, SourceMedia, SourceType } from "./types";
 
 /**
  * Fuente y tipo de lanzamiento.
  *
  * No existe ninguna forma fiable de confirmar desde el fichero que un contenido
- * proceda de un UHD Blu-ray o de un WEB-DL, ni de que sea un REMUX: un bitrate
- * alto, un tamaño grande o un códec concreto no lo demuestran. Por eso la fuente
- * se extrae del nombre original y NUNCA se marca como `CONFIRMED`.
+ * proceda de un Blu-ray o de un WEB-DL, ni de que sea un REMUX: un bitrate alto,
+ * un tamaño grande o un códec concreto no lo demuestran. Por eso la fuente se
+ * extrae del nombre original (o se deduce del stream) y NUNCA se marca como
+ * `CONFIRMED`. Se escribe igualmente en el nombre, porque es lo que se espera
+ * leer, pero la ficha técnica declara siempre de dónde salió.
  */
 
-const MEDIA_BY_EVIDENCE: ReadonlyMap<string, SourceMedia> = new Map([
-  ["UHD Blu-ray", "UHD Blu-ray"],
-  ["Blu-ray", "Blu-ray"],
-  ["WEB-DL", "WEB-DL"],
-  ["WEBRip", "WEBRip"],
-  ["HDTV", "HDTV"],
-  ["DVD", "DVD"],
-]);
+const KNOWN_MEDIA = new Set<string>(
+  ALL_RELEASE_SOURCES.filter((value) => value !== "BluRay REMUX"),
+);
+
+const mediaFromEvidence = (value: string | undefined): SourceMedia | undefined =>
+  value !== undefined && KNOWN_MEDIA.has(value) ? (value as SourceMedia) : undefined;
 
 export const detectSourceFromFilename = (filename: string): SourceInfo => {
   const parsed = parseMediaFilename(filename);
@@ -26,8 +27,9 @@ export const detectSourceFromFilename = (filename: string): SourceInfo => {
   const mediaEvidence = parsed.evidence.find((entry) => entry.field === "mediaSource");
   const remuxEvidence = parsed.evidence.find((entry) => entry.field === "releaseType");
 
-  const media =
-    mediaEvidence === undefined ? undefined : MEDIA_BY_EVIDENCE.get(mediaEvidence.value);
+  const media = mediaFromEvidence(
+    typeof mediaEvidence?.value === "string" ? mediaEvidence.value : undefined,
+  );
   const isRemux = remuxEvidence?.value === "REMUX";
 
   return {
@@ -50,34 +52,30 @@ export const detectSourceFromFilename = (filename: string): SourceInfo => {
 };
 
 /**
- * Campo de presentación `qualitySource`: une la clase de calidad (dato real del
- * stream) con la fuente (dato inferido). Si la fuente es desconocida, solo se
- * muestra la calidad; nunca se escribe `UNKNOWN` en el nombre.
+ * Etiqueta de fuente que se escribe en el nombre.
+ *
+ * La clase comercial (`4K`, `Full HD`) y la resolución (`2160p`) viajan aparte:
+ * aquí solo se decide `BluRay REMUX`, `WEB-DL`, `DVDRip`… Si no hay evidencia,
+ * no se escribe nada: nunca aparece `UNKNOWN` en un nombre de archivo.
  */
-export const composeQualitySource = (
-  quality: QualityClass | undefined,
+export const composeSourceLabel = (
   source: SourceInfo,
   options: { readonly allowInferred?: boolean } = {},
 ): string | undefined => {
-  if (quality === undefined) return undefined;
-
   const allowInferred = options.allowInferred ?? true;
   const usable = <T>(traced: Traced<T>): T | undefined =>
     traced.value !== undefined && (allowInferred || traced.confidence !== "INFERRED")
       ? traced.value
       : undefined;
 
-  if (usable(source.type) === "REMUX") return `${quality} REMUX`;
-
   const media = usable(source.media);
-  if (media === undefined) return quality;
+  const isRemux = usable(source.type) === "REMUX";
 
-  // La clase de calidad ya dice que es UHD: repetirlo sería ruido.
-  const mediaLabel = media === "UHD Blu-ray" ? "Blu-ray" : media;
-  return `${quality} ${mediaLabel}`;
+  if (media === undefined) return isRemux ? "REMUX" : undefined;
+  return isRemux && media === "BluRay" ? "BluRay REMUX" : media;
 };
 
-/** Presentación completa para la ficha técnica: `UHD Blu-ray REMUX`. */
+/** Presentación completa para la ficha técnica: `BluRay REMUX`. */
 export const describeSourceDetail = (source: SourceInfo): string | undefined => {
   const media = source.media.value;
   const type = source.type.value;

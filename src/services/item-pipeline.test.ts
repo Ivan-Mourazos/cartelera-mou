@@ -34,7 +34,7 @@ describe("ediciones manuales", () => {
   it("la fuente elegida a mano queda confirmada", () => {
     const item = withSource(
       createMediaItem(file("peli.mkv"), DEFAULT_SETTINGS),
-      { media: "Blu-ray", type: "REMUX" },
+      { media: "BluRay", type: "REMUX" },
       DEFAULT_SETTINGS,
     );
     expect(item.media.source.type.value).toBe("REMUX");
@@ -57,7 +57,7 @@ describe("una respuesta tardía no borra lo escrito a mano", () => {
       applyUserCorrection(edited.identification, "year", 2007),
       DEFAULT_SETTINGS,
     );
-    edited = withSource(edited, { media: "Blu-ray", type: "REMUX" }, DEFAULT_SETTINGS);
+    edited = withSource(edited, { media: "BluRay", type: "REMUX" }, DEFAULT_SETTINGS);
     edited = { ...edited, nameOverride: "Mi nombre.mkv" };
 
     // Llega el resultado del análisis, calculado sobre la versión anterior.

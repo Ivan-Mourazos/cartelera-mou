@@ -537,7 +537,7 @@ describe("nombres que vienen con corchetes y datos incompletos", () => {
     const forced = {
       ...base,
       source: {
-        media: userConfirmed("UHD Blu-ray" as const, "a mano"),
+        media: userConfirmed("BluRay" as const, "a mano"),
         type: userConfirmed("REMUX" as const, "a mano"),
       },
     };

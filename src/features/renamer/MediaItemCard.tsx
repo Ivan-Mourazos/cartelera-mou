@@ -46,17 +46,24 @@ const SOURCE_OPTIONS: readonly {
   readonly type: SourceType | undefined;
 }[] = [
   { value: "", label: "Sin fuente", media: undefined, type: undefined },
-  { value: "remux", label: "REMUX", media: undefined, type: "REMUX" },
-  { value: "uhd-bd-remux", label: "UHD Blu-ray REMUX", media: "UHD Blu-ray", type: "REMUX" },
-  { value: "bd-remux", label: "Blu-ray REMUX", media: "Blu-ray", type: "REMUX" },
-  { value: "uhd-bd", label: "UHD Blu-ray", media: "UHD Blu-ray", type: undefined },
-  { value: "bd", label: "Blu-ray", media: "Blu-ray", type: undefined },
+  { value: "bluray-remux", label: "BluRay REMUX", media: "BluRay", type: "REMUX" },
+  { value: "bluray", label: "BluRay", media: "BluRay", type: undefined },
+  { value: "uhdrip", label: "UHDRip", media: "UHDRip", type: undefined },
+  { value: "bdrip", label: "BDRip", media: "BDRip", type: undefined },
+  { value: "brrip", label: "BRRip", media: "BRRip", type: undefined },
   { value: "webdl", label: "WEB-DL", media: "WEB-DL", type: undefined },
   { value: "webrip", label: "WEBRip", media: "WEBRip", type: undefined },
   { value: "hdtv", label: "HDTV", media: "HDTV", type: undefined },
-  { value: "dvd", label: "DVD", media: "DVD", type: undefined },
+  { value: "hdtvrip", label: "HDTVRip", media: "HDTVRip", type: undefined },
+  { value: "microhd", label: "microHD", media: "microHD", type: undefined },
+  { value: "hdrip", label: "HDRip", media: "HDRip", type: undefined },
+  { value: "dvdrip", label: "DVDRip", media: "DVDRip", type: undefined },
+  { value: "dvdscr", label: "DVDScr", media: "DVDScr", type: undefined },
+  { value: "scr", label: "SCR", media: "SCR", type: undefined },
+  { value: "tc", label: "TC", media: "TC", type: undefined },
+  { value: "ts", label: "TS", media: "TS", type: undefined },
+  { value: "camrip", label: "CamRip", media: "CamRip", type: undefined },
 ];
-
 const currentSourceValue = (item: MediaItem): string => {
   const media = item.media.source.media.value;
   const type = item.media.source.type.value;

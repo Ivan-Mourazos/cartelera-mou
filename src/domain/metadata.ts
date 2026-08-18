@@ -4,7 +4,23 @@ export type EvidenceStrength = "explicit" | "derived" | "inferred";
 
 export type Resolution = "4K" | "4320p" | "2160p" | "1440p" | "1080p" | "720p" | "576p" | "480p";
 
-export type MediaSource = "UHD Blu-ray" | "Blu-ray" | "WEB-DL" | "WEBRip" | "HDTV" | "DVD";
+export type MediaSource =
+  | "BluRay"
+  | "UHDRip"
+  | "BDRip"
+  | "BRRip"
+  | "WEB-DL"
+  | "WEBRip"
+  | "HDTV"
+  | "HDTVRip"
+  | "microHD"
+  | "HDRip"
+  | "DVDRip"
+  | "DVDScr"
+  | "SCR"
+  | "TC"
+  | "TS"
+  | "CamRip";
 
 export type ReleaseType = "REMUX";
 

@@ -9,7 +9,7 @@ import {
 } from "../media/audio-selection";
 import { languageNameLabel } from "../media/language";
 import { isKnown, isUsableForName } from "../media/provenance";
-import { composeQualitySource, describeSourceDetail } from "../media/source";
+import { composeSourceLabel, describeSourceDetail } from "../media/source";
 import type { NormalizedMedia, QualityClass, VideoTrackInfo } from "../media/types";
 import { formatHdrForName } from "../media/video";
 import { findPreset, type NamePresetId } from "./presets";
@@ -190,7 +190,7 @@ export const buildNameTokens = (
   const video = videoTokens(media.video[0]);
   const identity = identificationTokens(identification, options.includeProviderId ?? false);
 
-  const qualitySource = composeQualitySource(video.quality, media.source, {
+  const qualitySource = composeSourceLabel(media.source, {
     allowInferred: allowInferredSource,
   });
 

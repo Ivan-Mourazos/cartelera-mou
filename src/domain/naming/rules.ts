@@ -1,4 +1,10 @@
-import { evidenceFor, type MetadataEvidence, type Resolution, type VideoCodec } from "../metadata";
+import {
+  evidenceFor,
+  type MediaSource,
+  type MetadataEvidence,
+  type Resolution,
+  type VideoCodec,
+} from "../metadata";
 import type { FilenameTokenCategory, MutableFilenameToken, TokenizedFilename } from "./types";
 
 export interface ClassifiedFilename {
@@ -396,121 +402,148 @@ const classifyEditions = (tokens: MutableFilenameToken[], evidence: MetadataEvid
   }
 };
 
+/**
+ * Vocabulario de fuente tal y como aparece en las publicaciones.
+ *
+ * Una etiqueta de un solo token se resuelve por tabla; las que se parten en
+ * varios tokens (`BLU RAY`, `WEB DL`) se comprueban por secuencia antes.
+ */
+const SINGLE_TOKEN_SOURCES: Readonly<Record<string, MediaSource>> = {
+  BLURAY: "BluRay",
+  BD: "BluRay",
+  BDRIP: "BDRip",
+  BLURAYRIP: "BDRip",
+  BRRIP: "BRRip",
+  UHDRIP: "UHDRip",
+  WEBDL: "WEB-DL",
+  WEB: "WEB-DL",
+  WEBRIP: "WEBRip",
+  HDTV: "HDTV",
+  HDTVRIP: "HDTVRip",
+  MICROHD: "microHD",
+  HDRIP: "HDRip",
+  DVD: "DVDRip",
+  DVDRIP: "DVDRip",
+  DVDSCR: "DVDScr",
+  DVDSCREENER: "DVDScr",
+  SCREENER: "SCR",
+  SCR: "SCR",
+  HDTC: "TC",
+  TC: "TC",
+  HDTS: "TS",
+  TS: "TS",
+  TELESYNC: "TS",
+  HDCAM: "CamRip",
+  CAMRIP: "CamRip",
+  CAM: "CamRip",
+};
+
+/** Plataformas: prueban que el origen es WEB, pero no se escriben en el nombre. */
+const WEB_PLATFORMS = new Set([
+  "AMZN",
+  "NF",
+  "NETFLIX",
+  "DSNP",
+  "MAX",
+  "HMAX",
+  "ATVP",
+  "HULU",
+  "SKST",
+  "MOVISTAR",
+]);
+
+/** Etiquetas que declaran REMUX y además el soporte de origen. */
+const REMUX_TOKENS = new Set(["REMUX", "BDREMUX", "BD-REMUX", "UHDREMUX", "4KREMUX"]);
+
 const classifySources = (tokens: MutableFilenameToken[], evidence: MetadataEvidence[]): void => {
   for (let index = 0; index < tokens.length; index += 1) {
     const normalized = tokens[index]?.normalized ?? "";
 
-    if (
-      sequenceAt(tokens, index, ["4K", "UHD", "BLURAY"]) ||
-      sequenceAt(tokens, index, ["4K", "UHD", "BLU", "RAY"]) ||
-      sequenceAt(tokens, index, ["4K", "BLURAY"]) ||
-      sequenceAt(tokens, index, ["4K", "BLU", "RAY"]) ||
-      sequenceAt(tokens, index, ["UHD", "BLURAY"])
-    ) {
-      const len = sequenceAt(tokens, index, ["4K", "UHD", "BLU", "RAY"])
-        ? 4
-        : sequenceAt(tokens, index, ["4K", "UHD", "BLURAY"]) ||
-            sequenceAt(tokens, index, ["4K", "BLU", "RAY"])
-          ? 3
-          : 2;
-      add(
-        evidence,
-        tokens,
-        indexesFrom(index, len),
-        "source",
-        "mediaSource",
-        "UHD Blu-ray",
-        "Fuente UHD Blu-ray explícita",
-      );
-      index += len - 1;
-    } else if (sequenceAt(tokens, index, ["UHD", "BLU", "RAY"])) {
-      add(
-        evidence,
-        tokens,
-        indexesFrom(index, 3),
-        "source",
-        "mediaSource",
-        "UHD Blu-ray",
-        "Fuente UHD Blu-ray explícita",
-      );
-      index += 2;
-    } else if (
-      normalized === "BLURAY" ||
-      normalized === "BLU-RAY" ||
-      normalized === "BD" ||
-      sequenceAt(tokens, index, ["BLU", "RAY"])
-    ) {
-      const len = sequenceAt(tokens, index, ["BLU", "RAY"]) ? 2 : 1;
-      // Check for "BluRay Rip"
-      if (tokens[index + len]?.normalized === "RIP") {
+    if (REMUX_TOKENS.has(normalized)) {
+      add(evidence, tokens, [index], "release-type", "releaseType", "REMUX", "REMUX explícito");
+      if (normalized !== "REMUX") {
         add(
           evidence,
           tokens,
-          indexesFrom(index, len + 1),
+          [index],
           "source",
           "mediaSource",
-          "Blu-ray",
-          "Fuente BluRay Rip explícita",
+          "BluRay",
+          `Soporte Blu-ray declarado en «${tokens[index]?.raw ?? normalized}»`,
         );
-        index += len;
-      } else {
-        add(
-          evidence,
-          tokens,
-          indexesFrom(index, len),
-          "source",
-          "mediaSource",
-          "Blu-ray",
-          "Fuente Blu-ray explícita",
-        );
-        index += len - 1;
       }
-    } else if (normalized === "BRRIP" || normalized === "BDRIP") {
-      add(evidence, tokens, [index], "source", "mediaSource", "Blu-ray", "Fuente BDRip/BRRip");
-    } else if (normalized === "BDREMUX" || normalized === "BD-REMUX") {
+      continue;
+    }
+
+    // `Blu Ray` y `Blu-Ray` se parten en dos tokens.
+    if (sequenceAt(tokens, index, ["BLU", "RAY"])) {
+      const hasRip = tokens[index + 2]?.normalized === "RIP";
       add(
         evidence,
         tokens,
-        [index],
+        indexesFrom(index, hasRip ? 3 : 2),
         "source",
         "mediaSource",
-        "Blu-ray",
-        "Fuente Blu-ray en BDREMUX",
+        hasRip ? "BDRip" : "BluRay",
+        hasRip ? "Fuente BluRay Rip explícita" : "Fuente Blu-ray explícita",
       );
-      add(evidence, tokens, [index], "release-type", "releaseType", "REMUX", "REMUX explícito");
-    } else if (normalized === "UHDREMUX" || normalized === "4KREMUX") {
+      index += hasRip ? 2 : 1;
+      continue;
+    }
+
+    if (sequenceAt(tokens, index, ["WEB", "DL"])) {
       add(
         evidence,
         tokens,
-        [index],
+        indexesFrom(index, 2),
         "source",
         "mediaSource",
-        "UHD Blu-ray",
-        "Fuente UHD Blu-ray en UHDREMUX",
+        "WEB-DL",
+        "Fuente WEB-DL explícita",
       );
-      add(evidence, tokens, [index], "release-type", "releaseType", "REMUX", "REMUX explícito");
-    } else if (normalized === "WEBDL" || sequenceAt(tokens, index, ["WEB", "DL"])) {
-      const indexes = normalized === "WEBDL" ? [index] : indexesFrom(index, 2);
-      add(evidence, tokens, indexes, "source", "mediaSource", "WEB-DL", "Fuente WEB-DL explícita");
-      index += indexes.length - 1;
-    } else if (normalized === "WEBRIP" || sequenceAt(tokens, index, ["WEB", "RIP"])) {
-      const len = sequenceAt(tokens, index, ["WEB", "RIP"]) ? 2 : 1;
+      index += 1;
+      continue;
+    }
+
+    if (sequenceAt(tokens, index, ["WEB", "RIP"])) {
       add(
         evidence,
         tokens,
-        indexesFrom(index, len),
+        indexesFrom(index, 2),
         "source",
         "mediaSource",
         "WEBRip",
         "Fuente WEBRip explícita",
       );
-      index += len - 1;
-    } else if (normalized === "HDTV" || normalized === "HDTVRIP") {
-      add(evidence, tokens, [index], "source", "mediaSource", "HDTV", "Fuente HDTV explícita");
-    } else if (normalized === "DVD" || normalized === "DVDRIP") {
-      add(evidence, tokens, [index], "source", "mediaSource", "DVD", "Fuente DVD explícita");
-    } else if (normalized === "HDRIP" || normalized === "MICROHD") {
-      add(evidence, tokens, [index], "source", "mediaSource", "Blu-ray", "Fuente Rip");
+      index += 1;
+      continue;
+    }
+
+    if (WEB_PLATFORMS.has(normalized)) {
+      add(
+        evidence,
+        tokens,
+        [index],
+        "source",
+        "mediaSource",
+        "WEB-DL",
+        `Plataforma «${tokens[index]?.raw ?? normalized}»: el origen es WEB`,
+        80,
+      );
+      continue;
+    }
+
+    const mapped = SINGLE_TOKEN_SOURCES[normalized];
+    if (mapped !== undefined) {
+      add(
+        evidence,
+        tokens,
+        [index],
+        "source",
+        "mediaSource",
+        mapped,
+        `Fuente ${mapped} explícita en el nombre`,
+      );
     }
   }
 };
@@ -532,10 +565,6 @@ const classifyVideo = (tokens: MutableFilenameToken[], evidence: MetadataEvidenc
 
   for (let index = 0; index < tokens.length; index += 1) {
     const normalized = tokens[index]?.normalized ?? "";
-    if (normalized === "REMUX") {
-      add(evidence, tokens, [index], "release-type", "releaseType", "REMUX", "REMUX explícito");
-    }
-
     const codec = codecMap.get(normalized);
     if (codec !== undefined) {
       add(

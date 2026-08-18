@@ -21,7 +21,7 @@ describe("parseMediaFilename", () => {
     expect(parsed.probableTitle).toBe("Dune Part Two");
     expect(parsed.year).toBe(2024);
     expect(valuesFor(parsed, "resolution")).toEqual(["4K"]);
-    expect(valuesFor(parsed, "mediaSource")).toEqual(["UHD Blu-ray"]);
+    expect(valuesFor(parsed, "mediaSource")).toEqual(["BluRay"]);
     expect(valuesFor(parsed, "releaseType")).toEqual(["REMUX"]);
     expect(valuesFor(parsed, "dolbyVision")).toEqual([true]);
     expect(valuesFor(parsed, "hdrFormat")).toEqual(["HDR10"]);
@@ -56,7 +56,7 @@ describe("parseMediaFilename", () => {
     expect(parsed.probableTitle).toBe("The Killer");
     expect(parsed.year).toBe(2023);
     expect(valuesFor(parsed, "resolution")).toEqual(["1080p"]);
-    expect(valuesFor(parsed, "mediaSource")).toEqual(["Blu-ray"]);
+    expect(valuesFor(parsed, "mediaSource")).toEqual(["BluRay"]);
     expect(valuesFor(parsed, "videoCodec")).toEqual(["H.264"]);
     expect(valuesFor(parsed, "audioCodec")).toEqual(["DTS-HD MA"]);
     expect(valuesFor(parsed, "channels")).toEqual(["5.1"]);
@@ -128,12 +128,12 @@ describe("parseMediaFilename", () => {
     expect(parsed.year).toBe(2000);
     expect(valuesFor(parsed, "resolution")).toEqual(["4K"]);
     expect(valuesFor(parsed, "hdrFormat")).toEqual(["HDR"]);
-    expect(valuesFor(parsed, "mediaSource")).toEqual(["Blu-ray"]);
+    expect(valuesFor(parsed, "mediaSource")).toEqual(["BluRay"]);
     expect(valuesFor(parsed, "releaseType")).toEqual(["REMUX"]);
     expect(valuesFor(parsed, "spatialAudio")).toEqual(["Atmos"]);
 
     const parsedFHD = parseMediaFilename("Avatar.2009.FHD.Blu-ray.mkv");
     expect(valuesFor(parsedFHD, "resolution")).toEqual(["1080p"]);
-    expect(valuesFor(parsedFHD, "mediaSource")).toEqual(["Blu-ray"]);
+    expect(valuesFor(parsedFHD, "mediaSource")).toEqual(["BluRay"]);
   });
 });

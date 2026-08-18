@@ -34,7 +34,7 @@ describe("normalización completa", () => {
 
   it("la fuente sí procede del nombre, marcada como inferida", () => {
     const media = normalizeMediaInfo(rawMedia(), "Dune.2024.2160p.UHD.BluRay.REMUX.mkv", 1000);
-    expect(media.source.media.value).toBe("UHD Blu-ray");
+    expect(media.source.media.value).toBe("BluRay");
     expect(media.source.media.confidence).toBe("INFERRED");
     expect(media.source.type.value).toBe("REMUX");
   });
