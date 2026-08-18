@@ -1,4 +1,5 @@
 import { parseMediaFilename } from "../naming/parser";
+import { extractEmbeddedId } from "./embedded-ids";
 import type { IdentificationHints } from "./types";
 
 /**
@@ -159,6 +160,7 @@ export const extractIdentificationHints = (
     episodeEnd: episodeMatch?.episodeEnd,
     edition,
     releaseGroup: parsed.releaseGroup,
+    embeddedId: extractEmbeddedId(filename),
   };
 };
 

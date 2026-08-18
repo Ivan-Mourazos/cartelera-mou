@@ -1,4 +1,5 @@
 import type { MatchBand, MatchScoreComponent } from "../matching/tmdb-score";
+import type { EmbeddedId } from "./embedded-ids";
 import type { Traced } from "../media/provenance";
 
 export type ContentKind = "movie" | "series";
@@ -14,6 +15,8 @@ export interface IdentificationHints {
   readonly episodeEnd: number | undefined;
   readonly edition: string | undefined;
   readonly releaseGroup: string | undefined;
+  /** Identificador del catálogo incrustado en el nombre. Evidencia exacta. */
+  readonly embeddedId: EmbeddedId | undefined;
 }
 
 export interface ProviderReference {
