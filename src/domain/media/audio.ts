@@ -1,3 +1,4 @@
+import { audioCodecLabel } from "../naming/release-labels";
 import { normalizeLanguage } from "./language";
 import { confirmed, unknown, type Traced } from "./provenance";
 import { toFlag, toInteger, toText, type RawAudioTrack } from "./raw";
@@ -237,12 +238,4 @@ export const normalizeAudioTrack = (track: RawAudioTrack, index: number): AudioT
 export const formatAudioCodecForName = (
   codec: AudioCodecName | undefined,
   options: { readonly atmos: boolean; readonly dtsX: boolean },
-): string | undefined => {
-  if (codec === undefined) return undefined;
-  if (options.dtsX) return "DTS:X";
-  if (!options.atmos) return codec;
-  if (codec === "TrueHD") return "TrueHD Atmos";
-  if (codec === "Dolby Digital Plus") return "Dolby Digital Plus Atmos";
-  if (codec === "Dolby Digital") return "Dolby Digital Atmos";
-  return `${codec} Atmos`;
-};
+): string | undefined => audioCodecLabel(codec, options);

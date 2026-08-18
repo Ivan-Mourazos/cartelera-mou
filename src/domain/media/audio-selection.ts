@@ -1,5 +1,5 @@
 import { formatAudioCodecForName } from "./audio";
-import { languageFilenameLabel, languageNameLabel } from "./language";
+import { languageFilenameLabel, otherLanguageLabel } from "./language";
 import type { AudioTrackInfo, NormalizedMedia } from "./types";
 
 /**
@@ -56,13 +56,13 @@ export const selectAudio = (
               : "Primera pista de audio no comentario";
 
   const primaryLabel =
-    primary?.language.value === undefined ? undefined : languageNameLabel(primary.language.value);
+    primary?.language.value === undefined ? undefined : otherLanguageLabel(primary.language.value);
 
   const otherLanguages: string[] = [];
   for (const track of selectable) {
     const language = track.language.value;
     if (language === undefined) continue;
-    const label = languageNameLabel(language);
+    const label = otherLanguageLabel(language);
     if (label === primaryLabel) continue;
     if (!otherLanguages.includes(label)) otherLanguages.push(label);
   }
@@ -76,7 +76,7 @@ export const selectAudio = (
   };
 };
 
-/** `ESP TrueHD Atmos 7.1`. Devuelve `undefined` si falta el dato esencial. */
+/** `Castellano TrueHD Atmos 7.1`. Devuelve `undefined` si falta el dato esencial. */
 export const formatPrimaryAudio = (
   track: AudioTrackInfo | undefined,
   options: { readonly compact?: boolean } = {},
@@ -85,21 +85,19 @@ export const formatPrimaryAudio = (
 
   const language = track.language.value;
   // La pista principal se escribe con el nombre del idioma («Castellano»); el
-  // resumen de los demás idiomas sigue usando códigos cortos para no alargar.
+  // resumen de los demás idiomas usa códigos cortos para no alargar el nombre.
   const languageLabel =
     language === undefined
       ? undefined
       : options.compact === true
-        ? languageNameLabel(language)
+        ? otherLanguageLabel(language)
         : languageFilenameLabel(language);
   const atmos = track.atmos.value === true;
   const dtsX = track.dtsX.value === true;
   const codec = formatAudioCodecForName(track.codec.value, { atmos, dtsX });
   const channels = track.channelLayout.value;
 
-  const codecPart = options.compact === true ? (atmos ? "Atmos" : dtsX ? "DTS:X" : codec) : codec;
-
-  const parts = [languageLabel, codecPart, channels].filter(
+  const parts = [languageLabel, codec, channels].filter(
     (part): part is string => part !== undefined && part.length > 0,
   );
   return parts.length === 0 ? undefined : parts.join(" ");
@@ -108,18 +106,17 @@ export const formatPrimaryAudio = (
 /**
  * Separador de idiomas.
  *
- * La especificación funcional pedía `/`, pero la barra es un separador de rutas
- * en Windows, macOS y Linux: no puede formar parte de un nombre de archivo (en
- * Windows es directamente un carácter prohibido). Se usa `+`, legal en todos los
- * sistemas y visualmente inequívoco, y el separador es configurable.
+ * La especificación funcional pedía `/`, pero la barra es el separador de rutas
+ * en Windows, macOS y Linux: no puede formar parte de un nombre de archivo. Se
+ * usa `+`, legal en todos los sistemas, y el separador es configurable.
  */
 export const DEFAULT_LANGUAGE_SEPARATOR = "+";
 
+/** `ENG+FRA`. Sin la palabra «Otros»: el bloque ya se lee como tal. */
 export const formatOtherLanguages = (
   languages: readonly string[],
-  options: { readonly compact?: boolean; readonly separator?: string } = {},
-): string | undefined => {
-  if (languages.length === 0) return undefined;
-  const joined = languages.join(options.separator ?? DEFAULT_LANGUAGE_SEPARATOR);
-  return options.compact === true ? joined : `Otros ${joined}`;
-};
+  options: { readonly separator?: string } = {},
+): string | undefined =>
+  languages.length === 0
+    ? undefined
+    : languages.join(options.separator ?? DEFAULT_LANGUAGE_SEPARATOR);

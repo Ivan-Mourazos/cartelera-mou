@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { selectAudio } from "./audio-selection";
+import { formatOtherLanguages, formatPrimaryAudio, selectAudio } from "./audio-selection";
 import { audioTrack, mediaFor } from "./test-fixtures";
 
 const dd51 = (language: string, extra: Record<string, unknown> = {}) =>
@@ -55,5 +55,76 @@ describe("selección de la pista principal", () => {
     const selection = selectAudio(media, { originalLanguageBase: "en" });
 
     expect(selection.primary?.language.value?.base).toBe("en");
+  });
+});
+
+describe("formato del bloque de audio", () => {
+  const primaryFor = (fields: Record<string, unknown>) =>
+    formatPrimaryAudio(
+      selectAudio(mediaFor("peli.mkv", { audio: [audioTrack(fields)] })).primary,
+    );
+
+  it("escribe Castellano con el códec y los canales", () => {
+    expect(
+      primaryFor({
+        Language: "es-ES",
+        Format: "MLP FBA",
+        Format_Commercial_IfAny: "Dolby TrueHD with Dolby Atmos",
+        Format_AdditionalFeatures: "16-ch",
+      }),
+    ).toBe("Castellano TrueHD Atmos 7.1");
+  });
+
+  it("usa DD+ para Dolby Digital Plus", () => {
+    expect(
+      primaryFor({
+        Language: "es-ES",
+        Format: "E-AC-3",
+        Channels: 6,
+        ChannelLayout: "L R C LFE Ls Rs",
+      }),
+    ).toBe("Castellano DD+ 5.1");
+  });
+
+  it("usa DD para Dolby Digital", () => {
+    expect(
+      primaryFor({
+        Language: "es-ES",
+        Format: "AC-3",
+        Channels: 6,
+        ChannelLayout: "L R C LFE Ls Rs",
+      }),
+    ).toBe("Castellano DD 5.1");
+  });
+
+  it("escribe Español cuando la región no consta", () => {
+    expect(primaryFor({ Language: "spa", Format: "AC-3", ChannelLayout: "L R" })).toBe(
+      "Español DD 2.0",
+    );
+  });
+
+  it("escribe DTS-X con guion: los dos puntos están prohibidos en Windows", () => {
+    const value = primaryFor({
+      Language: "es-ES",
+      Format: "DTS",
+      Format_Commercial_IfAny: "DTS-HD Master Audio",
+      Format_AdditionalFeatures: "XLL X",
+    });
+    expect(value).toContain("DTS-X");
+    expect(value).not.toContain(":");
+  });
+});
+
+describe("formatOtherLanguages", () => {
+  it("une abreviaturas de tres letras con +", () => {
+    expect(formatOtherLanguages(["ENG", "FRA"])).toBe("ENG+FRA");
+  });
+
+  it("no antepone la palabra «Otros»: el bloque ya se lee como tal", () => {
+    expect(formatOtherLanguages(["ENG"])).toBe("ENG");
+  });
+
+  it("devuelve undefined sin otros idiomas", () => {
+    expect(formatOtherLanguages([])).toBeUndefined();
   });
 });

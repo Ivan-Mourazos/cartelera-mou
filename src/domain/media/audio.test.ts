@@ -63,14 +63,14 @@ describe("Atmos", () => {
   });
 });
 
-describe("DTS:X", () => {
+describe("DTS-X", () => {
   it("DTS-HD MA no es DTS:X", () => {
     expect(detectDtsX(track({ Format: "DTS", Format_Profile: "MA / Core" }))).toBe(false);
   });
 
   it("DTS:X requiere XLL X o nombre comercial", () => {
     expect(detectDtsX(track({ Format: "DTS", Format_AdditionalFeatures: "XLL X" }))).toBe(true);
-    expect(detectDtsX(track({ Format: "DTS", Format_Commercial_IfAny: "DTS:X" }))).toBe(true);
+    expect(detectDtsX(track({ Format: "DTS", Format_Commercial_IfAny: "DTS-X" }))).toBe(true);
   });
 });
 
@@ -92,10 +92,10 @@ describe("canales", () => {
 
 describe("presentación del audio principal", () => {
   it.each([
-    [{ codec: "Dolby Digital", atmos: false, dtsX: false }, "Dolby Digital"],
-    [{ codec: "Dolby Digital Plus", atmos: true, dtsX: false }, "Dolby Digital Plus Atmos"],
+    [{ codec: "Dolby Digital", atmos: false, dtsX: false }, "DD"],
+    [{ codec: "Dolby Digital Plus", atmos: true, dtsX: false }, "DD+ Atmos"],
     [{ codec: "TrueHD", atmos: true, dtsX: false }, "TrueHD Atmos"],
-    [{ codec: "DTS-HD MA", atmos: false, dtsX: true }, "DTS:X"],
+    [{ codec: "DTS-HD MA", atmos: false, dtsX: true }, "DTS-X"],
   ] as const)("%o ⇒ %s", (input, expected) => {
     expect(formatAudioCodecForName(input.codec, { atmos: input.atmos, dtsX: input.dtsX })).toBe(
       expected,
