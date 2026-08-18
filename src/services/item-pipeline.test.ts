@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import { applyUserCorrection } from "../domain/identification/build";
+import { normalizeMediaInfo } from "../domain/media/normalize";
 import {
   createMediaItem,
   effectiveName,
+  hasAmbiguousSpanish,
   identifyMediaItem,
   preserveUserEdits,
   withIdentification,
   withSource,
+  withSpanishVariant,
   type MediaItem,
 } from "./item-pipeline";
 import { nullMetadataProvider, type MetadataProvider } from "./providers/types";
@@ -150,5 +153,56 @@ describe("señales del archivo en la identificación", () => {
     await identifyMediaItem(item, provider, DEFAULT_SETTINGS);
 
     expect(queries.map((query) => query.year)).toContain(1995);
+  });
+});
+
+describe("variante del español a mano", () => {
+  const spanishFile = (): MediaItem => {
+    const item = createMediaItem(file("Peli.2020.1080p.mkv"), DEFAULT_SETTINGS);
+    return {
+      ...item,
+      media: normalizeMediaInfo(
+        {
+          general: { "@type": "General", Format: "Matroska" },
+          video: [{ "@type": "Video", Format: "AVC", Width: 1920, Height: 1080, BitDepth: 8 }],
+          audio: [
+            {
+              "@type": "Audio",
+              Format: "AC-3",
+              Language: "spa",
+              Channels: 6,
+              ChannelLayout: "L R C LFE Ls Rs",
+            },
+          ],
+          text: [],
+        },
+        "Peli.2020.1080p.mkv",
+        1_000_000_000,
+      ),
+    };
+  };
+
+  it("detecta el español de región desconocida", () => {
+    expect(hasAmbiguousSpanish(spanishFile())).toBe(true);
+  });
+
+  it("marcarlo como castellano lo escribe en el nombre y queda confirmado", () => {
+    const marked = withSpanishVariant(spanishFile(), "castilian", DEFAULT_SETTINGS);
+
+    expect(effectiveName(marked)).toContain("Castellano");
+    expect(marked.media.audio[0]?.language.confidence).toBe("USER_CONFIRMED");
+    expect(hasAmbiguousSpanish(marked)).toBe(false);
+  });
+
+  it("marcarlo como latino también", () => {
+    const marked = withSpanishVariant(spanishFile(), "latin", DEFAULT_SETTINGS);
+    expect(effectiveName(marked)).toContain("Latino");
+  });
+
+  it("no toca las pistas cuya región ya consta", () => {
+    const item = createMediaItem(file("Peli.mkv"), DEFAULT_SETTINGS);
+    expect(withSpanishVariant(item, "castilian", DEFAULT_SETTINGS).media.audio).toEqual(
+      item.media.audio,
+    );
   });
 });

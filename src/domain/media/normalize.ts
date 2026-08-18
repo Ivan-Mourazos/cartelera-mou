@@ -134,6 +134,8 @@ export const normalizeMediaInfo = (
       detectSourceFromFilename(filename),
       inferSourceFromStream({
         overallBitrateBps: toInteger(raw.general?.OverallBitRate),
+        fileSizeBytes: toInteger(raw.general?.FileSize) ?? fileSizeBytes,
+        durationSeconds: toNumber(raw.general?.Duration),
         videoCodec: video[0]?.codec.value,
         pixelLabel: video[0]?.resolution.value?.pixelLabel,
       }),

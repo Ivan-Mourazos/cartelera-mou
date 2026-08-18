@@ -3,6 +3,7 @@ import type {
   ContentIdentification,
   ProviderCandidateSummary,
 } from "../domain/identification/types";
+import { resolveSpanishVariant } from "../domain/media/language";
 import { emptyNormalizedMedia, normalizeMediaInfo } from "../domain/media/normalize";
 import { unknown, userConfirmed } from "../domain/media/provenance";
 import type { NormalizedMedia, SourceMedia, SourceType } from "../domain/media/types";
@@ -278,3 +279,43 @@ export const preserveUserEdits = (
 
 /** Nombre que realmente se usará al renombrar. */
 export const effectiveName = (item: MediaItem): string => item.nameOverride ?? item.name.filename;
+
+/**
+ * Fija a mano la variante del español en las pistas ambiguas.
+ *
+ * El contenedor suele traer `spa` a secas, que no dice si es castellano o
+ * latino. Pedir que se confirme sin ofrecer dónde hacerlo era un callejón sin
+ * salida: esto es la salida.
+ */
+export const withSpanishVariant = (
+  item: MediaItem,
+  variant: "castilian" | "latin",
+  settings: AppSettings,
+): MediaItem => {
+  const media: NormalizedMedia = {
+    ...item.media,
+    audio: item.media.audio.map((track) => {
+      const language = track.language.value;
+      if (language?.base !== "es" || !language.regionAmbiguous) return track;
+      return {
+        ...track,
+        language: userConfirmed(
+          resolveSpanishVariant(language, variant),
+          "Variante del español indicada a mano",
+        ),
+      };
+    }),
+  };
+
+  return {
+    ...item,
+    media,
+    name: buildMediaName(item.identification, media, nameOptions(settings)),
+  };
+};
+
+/** ¿Hay alguna pista en español cuya región no se puede determinar? */
+export const hasAmbiguousSpanish = (item: MediaItem): boolean =>
+  item.media.audio.some(
+    (track) => track.language.value?.base === "es" && track.language.value.regionAmbiguous,
+  );
