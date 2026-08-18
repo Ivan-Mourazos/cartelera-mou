@@ -177,9 +177,3 @@ export const normalizeVideoTrack = (track: RawVideoTrack, index: number): VideoT
         : confirmed(dolbyVision, SOURCE, formatDolbyVisionDetail(dolbyVision)),
   };
 };
-
-export const isInterlaced = (track: RawVideoTrack): boolean | undefined => {
-  const scan = toText(track.ScanType)?.toLowerCase();
-  if (scan === undefined) return undefined;
-  return scan.includes("interlaced");
-};

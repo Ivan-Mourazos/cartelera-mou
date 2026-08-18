@@ -84,8 +84,3 @@ export const describeSourceDetail = (source: SourceInfo): string | undefined => 
   if (type === undefined) return media;
   return `${media} ${type}`;
 };
-
-export const sourceConfidenceNote = (source: SourceInfo): string => {
-  const traced: Traced<unknown> = source.type.value !== undefined ? source.type : source.media;
-  return traced.note ?? "Sin evidencia de fuente";
-};

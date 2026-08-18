@@ -76,11 +76,6 @@ export const parseTemplateTokens = (template: string): readonly string[] => {
   return found;
 };
 
-export const unknownTemplateTokens = (template: string): readonly string[] =>
-  parseTemplateTokens(template).filter(
-    (token) => !(ALL_NAME_TOKENS as readonly string[]).includes(token),
-  );
-
 const cleanBracketGroups = (value: string): string =>
   value.replace(/\[([^\]]*)\]/gu, (_match, inner: string) => {
     const parts = inner

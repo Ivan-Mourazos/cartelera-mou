@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { rankTmdbCandidates, scoreMovieCandidate } from "./tmdb-score";
+import { rankTmdbCandidates, scoreTmdbCandidate } from "./tmdb-score";
 
 describe("TMDb auditable matching", () => {
   it("explains an exact, compatible match and can auto-select it", () => {
-    const result = scoreMovieCandidate(
+    const result = scoreTmdbCandidate(
       { title: "Dune: Part Two", year: 2024, runtimeMinutes: 166 },
       { id: 693134, title: "Dune: Part Two", releaseYear: 2024, runtimeMinutes: 166 },
     );
@@ -29,7 +29,7 @@ describe("TMDb auditable matching", () => {
   });
 
   it("records year penalties and prior user corrections as separate components", () => {
-    const result = scoreMovieCandidate(
+    const result = scoreTmdbCandidate(
       { title: "Alien", year: 1979, previouslySelectedTmdbId: 99 },
       { id: 99, title: "Alien", releaseYear: 1992 },
     );

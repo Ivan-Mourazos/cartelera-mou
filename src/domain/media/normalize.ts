@@ -151,5 +151,3 @@ export const emptyNormalizedMedia = (filename: string, reason: string): Normaliz
   source: detectSourceFromFilename(filename),
   warnings: [reason],
 });
-
-export const primaryVideoTrack = (media: NormalizedMedia) => media.video[0];

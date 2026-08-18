@@ -78,7 +78,3 @@ export const classifyResolution = (
 
   return { quality: band.quality, pixelLabel: band.pixelLabel, width, height, reason };
 };
-
-/** Presentación exacta para la ficha técnica. */
-export const formatExactResolution = (classification: ResolutionClassification): string =>
-  `${String(classification.width)} × ${String(classification.height)}`;

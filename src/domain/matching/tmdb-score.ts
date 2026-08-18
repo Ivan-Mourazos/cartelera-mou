@@ -301,6 +301,3 @@ export const scoreTmdbCandidate = (
   }
   return scored;
 };
-
-/** Product-language alias used by consumers that should not depend on TMDb naming. */
-export const scoreMovieCandidate = scoreTmdbCandidate;

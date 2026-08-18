@@ -75,23 +75,6 @@ export const isUsableForName = <T>(
   return true;
 };
 
-const PRECEDENCE: Readonly<Record<Confidence, number>> = {
-  USER_CONFIRMED: 4,
-  CONFIRMED: 3,
-  INFERRED: 2,
-  UNKNOWN: 1,
-};
-
-/** Selecciona el dato más fiable. Ante empate gana el primero recibido. */
-export const preferMostReliable = <T>(...candidates: readonly Traced<T>[]): Traced<T> => {
-  let best: Traced<T> = unknown<T>();
-  for (const candidate of candidates) {
-    if (!isKnown(candidate)) continue;
-    if (PRECEDENCE[candidate.confidence] > PRECEDENCE[best.confidence]) best = candidate;
-  }
-  return best;
-};
-
 export const describeConfidence = (confidence: Confidence): string =>
   ({
     CONFIRMED: "Confirmado en el fichero",

@@ -291,9 +291,6 @@ export const languageFilenameLabel = (language: NormalizedLanguage): string => {
 export const isCastilian = (language: NormalizedLanguage | undefined): boolean =>
   language?.base === "es" && language.label === "ESP";
 
-export const isSpanishOfUnknownRegion = (language: NormalizedLanguage | undefined): boolean =>
-  language?.base === "es" && language.regionAmbiguous;
-
 /**
  * Abreviatura de tres letras para el resumen de idiomas secundarios. Nunca
  * afirma la región del español si no consta.

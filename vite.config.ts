@@ -1,25 +1,8 @@
-import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
-import process from "node:process";
-
-const host = process.env.TAURI_DEV_HOST;
+import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react()],
-  clearScreen: false,
-  server: {
-    port: 1420,
-    strictPort: true,
-    host: host ?? false,
-    hmr: host ? { protocol: "ws", host, port: 1421 } : undefined,
-    watch: {
-      ignored: ["**/src-tauri/**"],
-    },
-  },
-  envPrefix: ["VITE_", "TAURI_"],
-  build: {
-    target: process.env.TAURI_ENV_PLATFORM === "windows" ? "chrome105" : "safari13",
-    minify: process.env.TAURI_ENV_DEBUG ? false : "oxc",
-    sourcemap: Boolean(process.env.TAURI_ENV_DEBUG),
-  },
+  server: { port: 1420, strictPort: true },
+  build: { target: "chrome110" },
 });
