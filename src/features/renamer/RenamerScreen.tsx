@@ -8,7 +8,7 @@ import {
   Undo2,
   Zap,
 } from "lucide-react";
-import { useRef, useState, type DragEvent } from "react";
+import { useRef, useState, type DragEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import {
   filesFromDataTransfer,
@@ -69,6 +69,38 @@ export function RenamerScreen() {
   const visible = state.visibleItems;
   const virtualized = visible.length >= VIRTUALIZE_FROM;
 
+  /**
+   * Navegación por teclado sobre la lista. Se ignora cuando el foco está dentro
+   * de un campo de texto: ahí las flechas mueven el cursor.
+   */
+  const onRowKeyDown = (event: ReactKeyboardEvent<HTMLElement>, index: number): void => {
+    const target = event.target as HTMLElement;
+    if (target.tagName === "INPUT" || target.tagName === "SELECT") return;
+
+    const move = (delta: number): void => {
+      const next = listRef.current?.querySelectorAll<HTMLElement>(".file-entry")[index + delta];
+      if (next === undefined) return;
+      event.preventDefault();
+      next.focus();
+    };
+
+    const item = visible[index];
+    if (item === undefined) return;
+
+    if (event.key === "ArrowDown") move(1);
+    else if (event.key === "ArrowUp") move(-1);
+    else if (event.key === "Enter") {
+      event.preventDefault();
+      state.toggleExpanded(item.id);
+    } else if (event.key === " ") {
+      event.preventDefault();
+      state.toggleSelected(item.id, event.shiftKey);
+    } else if (event.key === "Delete") {
+      event.preventDefault();
+      state.removeItem(item.id);
+    }
+  };
+
   const renderRow = (index: number) => {
     const item = visible[index];
     if (item === undefined) return null;
@@ -76,7 +108,14 @@ export function RenamerScreen() {
     const expanded = state.expandedId === item.id;
 
     return (
-      <article key={item.id} className="file-entry">
+      <article
+        key={item.id}
+        className="file-entry"
+        tabIndex={0}
+        onKeyDown={(event) => {
+          onRowKeyDown(event, index);
+        }}
+      >
         <FileRow
           item={item}
           state={rowStateOf(item, planItem)}

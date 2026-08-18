@@ -609,6 +609,11 @@
   border-color: var(--border-strong);
 }
 
+.file-entry:focus-visible {
+  outline: 2px solid var(--apple-blue);
+  outline-offset: 1px;
+}
+
 .file-row {
   display: flex;
   align-items: center;
