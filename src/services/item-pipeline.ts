@@ -41,6 +41,8 @@ export interface MediaItem {
   readonly kindLocked: boolean;
   readonly error: string | undefined;
   readonly analysisPending: boolean;
+  /** Consultas lanzadas al proveedor, en orden, para la ficha técnica. */
+  readonly attempts: readonly string[];
 }
 
 let sequence = 0;
@@ -88,6 +90,7 @@ export const createMediaItem = (picked: PickedFile, settings: AppSettings): Medi
     kindLocked: false,
     error: undefined,
     analysisPending: picked.file !== undefined,
+    attempts: [],
   };
 };
 
@@ -131,10 +134,26 @@ export const identifyMediaItem = async (
   settings: AppSettings,
   signal?: AbortSignal,
 ): Promise<MediaItem> => {
-  const hints = extractIdentificationHints(item.currentName, item.folderName);
+  const fromFilename = extractIdentificationHints(item.currentName, item.folderName);
+  // Los MKV de release suelen traer el nombre completo dentro del contenedor:
+  // es la salvación de los `01.mkv` y `pelicula.mkv`.
+  const containerTitle = item.media.general.titleMetadata.value;
+  const hints =
+    fromFilename.titleGuess.length >= 3 || containerTitle === undefined
+      ? fromFilename
+      : extractIdentificationHints(containerTitle, item.folderName);
+
+  const durationSeconds = item.media.general.durationSeconds.value;
+  const audioLanguages = item.media.audio.flatMap((track) =>
+    track.language.value === undefined ? [] : [track.language.value.base],
+  );
+
   const outcome = await identifyContent(hints, provider, {
     ...(signal === undefined ? {} : { signal }),
     autoApplyBand: settings.autoApplyBand,
+    ...(durationSeconds === undefined ? {} : { runtimeMinutes: Math.round(durationSeconds / 60) }),
+    ...(audioLanguages.length === 0 ? {} : { audioLanguages }),
+    ...(item.folderName === undefined ? {} : { parentFolderName: item.folderName }),
     ...(item.identification.reference === undefined
       ? {}
       : { previouslySelectedId: item.identification.reference.id }),
@@ -145,6 +164,7 @@ export const identifyMediaItem = async (
     ...item,
     identification,
     candidates: outcome.candidates,
+    attempts: outcome.attempts,
     ...(outcome.error === undefined ? {} : { error: outcome.error.message }),
     name: buildMediaName(identification, item.media, nameOptions(settings)),
   };

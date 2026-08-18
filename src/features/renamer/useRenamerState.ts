@@ -25,6 +25,7 @@ import {
   type MediaItem,
 } from "../../services/item-pipeline";
 import { applyCandidate } from "../../services/identification-service";
+import { rememberCorrection } from "../../services/learned-corrections";
 import { createTmdbProvider } from "../../services/providers/tmdb";
 import {
   nullMetadataProvider,
@@ -235,6 +236,12 @@ export const useRenamerState = () => {
         ...withIdentification(current, identification, settings),
         nameOverride: undefined,
       }));
+      // La decisión vale para todos los archivos futuros de la misma obra.
+      rememberCorrection(
+        item.identification.spanishTitle.value ?? candidate.spanishTitle,
+        candidate.kind,
+        candidate.id,
+      );
       setNotice(`Datos aplicados: ${candidate.spanishTitle} (${String(candidate.year ?? "—")}).`);
     },
     [items, patchItem, provider, settings],

@@ -58,7 +58,7 @@ describe("identificación", () => {
     expect(outcome.identification.reference).toEqual({ provider: "tmdb", id: 693134 });
   });
 
-  it("NO aplica una coincidencia ambigua y ofrece alternativas", async () => {
+  it("aplica también una coincidencia ambigua, pero marcada y con alternativas", async () => {
     const hints = extractIdentificationHints("Alien.1979.2160p.mkv");
     const outcome = await identifyContent(
       hints,
@@ -69,8 +69,10 @@ describe("identificación", () => {
       ]),
     );
 
-    expect(outcome.identification.reference).toBeUndefined();
-    expect(outcome.identification.spanishTitle.confidence).toBe("INFERRED");
+    // La política del producto es aplicar siempre el mejor candidato y dejar
+    // visible que la coincidencia no es segura, en vez de no proponer nada.
+    expect(outcome.identification.reference).toBeDefined();
+    expect(outcome.identification.matchBand).not.toBe("high");
     expect(outcome.candidates.length).toBeGreaterThan(1);
     expect(outcome.candidates[0]?.components.length).toBeGreaterThan(0);
   });

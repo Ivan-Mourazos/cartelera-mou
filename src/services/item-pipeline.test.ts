@@ -4,10 +4,13 @@ import { applyUserCorrection } from "../domain/identification/build";
 import {
   createMediaItem,
   effectiveName,
+  identifyMediaItem,
   preserveUserEdits,
   withIdentification,
   withSource,
+  type MediaItem,
 } from "./item-pipeline";
+import { nullMetadataProvider, type MetadataProvider } from "./providers/types";
 import { DEFAULT_SETTINGS } from "./settings";
 
 const file = (name: string) => ({ name, size: 1, handle: undefined, file: undefined });
@@ -88,5 +91,64 @@ describe("una respuesta tardía no borra lo escrito a mano", () => {
     const merged = preserveUserEdits(edited, late, DEFAULT_SETTINGS);
     expect(merged.identification.spanishTitle.value).toBe("Mi título");
     expect(merged.identification.episodeTitle.value).toBe("Episodio del proveedor");
+  });
+});
+
+describe("señales del archivo en la identificación", () => {
+  const providerSpy = () => {
+    const queries: { title: string; year?: number | undefined }[] = [];
+    const provider: MetadataProvider = {
+      ...nullMetadataProvider,
+      id: "tmdb",
+      available: true,
+      search: (query) => {
+        queries.push({ title: query.title, year: query.year });
+        return Promise.resolve([]);
+      },
+      searchMulti: (title) => {
+        queries.push({ title });
+        return Promise.resolve([]);
+      },
+    };
+    return { provider, queries };
+  };
+
+  const withGeneral = (item: MediaItem, general: Partial<MediaItem["media"]["general"]>) => ({
+    ...item,
+    media: { ...item.media, general: { ...item.media.general, ...general } },
+  });
+
+  it("usa el título del contenedor cuando el nombre del archivo es inservible", async () => {
+    const { provider, queries } = providerSpy();
+    const item = withGeneral(createMediaItem(file("01.mkv"), DEFAULT_SETTINGS), {
+      titleMetadata: {
+        value: "Dune.Part.Two.2024.2160p.UHD.BluRay.REMUX",
+        confidence: "CONFIRMED",
+        source: "CONTAINER_METADATA",
+      },
+    });
+
+    await identifyMediaItem(item, provider, DEFAULT_SETTINGS);
+
+    expect(queries.some((query) => query.title.toLowerCase().includes("dune"))).toBe(true);
+  });
+
+  it("registra las consultas lanzadas para poder explicarlas", async () => {
+    const { provider } = providerSpy();
+    const item = createMediaItem(file("Heat.1995.1080p.BluRay.mkv"), DEFAULT_SETTINGS);
+
+    const identified = await identifyMediaItem(item, provider, DEFAULT_SETTINGS);
+
+    expect(identified.attempts).toContain("title-year");
+    expect(identified.attempts).toContain("multi");
+  });
+
+  it("reintenta con el año adyacente: el del nombre suele ser el del lanzamiento", async () => {
+    const { provider, queries } = providerSpy();
+    const item = createMediaItem(file("Heat.1996.1080p.BluRay.mkv"), DEFAULT_SETTINGS);
+
+    await identifyMediaItem(item, provider, DEFAULT_SETTINGS);
+
+    expect(queries.map((query) => query.year)).toContain(1995);
   });
 });

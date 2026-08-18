@@ -147,6 +147,8 @@ export const resolveWork = async (
 ): Promise<ResolveOutcome> => {
   const { hints } = input;
   const kindFromHints: WorkKind = hints.kind === "series" ? "series" : "movie";
+  /** `S01E03`, `1x03`, `Cap.202`: no hay señal más clara de que es una serie. */
+  const hasEpisodeMarker = hints.episode !== undefined;
   const empty: ResolveOutcome = {
     candidate: undefined,
     kind: kindFromHints,
@@ -239,8 +241,10 @@ export const resolveWork = async (
 
     const outcome: ResolveOutcome = {
       candidate: chosen,
-      // El tipo lo decide el proveedor: `/search/multi` acierta donde el nombre calla.
-      kind: chosen.kind,
+      // El proveedor decide el tipo solo cuando el nombre no lo declara: un
+      // `S01E03` explícito es evidencia más fuerte que el resultado de una
+      // búsqueda, y sin él se perdería el título del episodio.
+      kind: hasEpisodeMarker ? kindFromHints : chosen.kind,
       band: top.band,
       score: top.score,
       components: top.components,

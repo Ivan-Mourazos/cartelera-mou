@@ -4,7 +4,8 @@ import type {
   IdentificationHints,
   ProviderCandidateSummary,
 } from "../domain/identification/types";
-import { rankTmdbCandidates, type TmdbMovieCandidate } from "../domain/matching/tmdb-score";
+import { resolveWork } from "./identification/resolver";
+import { recallCorrection } from "./learned-corrections";
 import type { MetadataProvider, ProviderCandidate } from "./providers/types";
 
 /**
@@ -18,111 +19,76 @@ export interface IdentifyOptions {
   /** Puntuación mínima con margen suficiente para aplicar automáticamente. */
   readonly autoApplyBand?: "high" | "medium";
   readonly previouslySelectedId?: number;
+  /** Duración real del archivo, en minutos. Señal de desempate. */
+  readonly runtimeMinutes?: number;
+  /** Idiomas base de las pistas de audio. */
+  readonly audioLanguages?: readonly string[];
+  readonly parentFolderName?: string;
 }
-
-const toScoringCandidate = (candidate: ProviderCandidate): TmdbMovieCandidate => ({
-  id: candidate.id,
-  title: candidate.spanishTitle,
-  ...(candidate.originalTitle === undefined ? {} : { originalTitle: candidate.originalTitle }),
-  ...(candidate.year === undefined ? {} : { releaseYear: candidate.year }),
-});
-
-const summarize = (
-  candidate: ProviderCandidate,
-  score: number,
-  band: ProviderCandidateSummary["band"],
-  components: ProviderCandidateSummary["components"],
-): ProviderCandidateSummary => ({
-  id: candidate.id,
-  spanishTitle: candidate.spanishTitle,
-  originalTitle: candidate.originalTitle ?? candidate.spanishTitle,
-  year: candidate.year,
-  posterUrl: candidate.posterUrl,
-  score,
-  band,
-  components,
-});
 
 export interface IdentificationOutcome {
   readonly identification: ContentIdentification;
   readonly candidates: readonly ProviderCandidateSummary[];
+  /** Consultas lanzadas, en orden. Trazabilidad para la ficha técnica. */
+  readonly attempts: readonly string[];
   readonly error: Error | undefined;
 }
 
+/**
+ * Identificación de la obra: pistas del nombre y del archivo → cascada de
+ * consultas → puntuación auditable. Siempre se aplica el mejor candidato, y las
+ * alternativas viajan con el resultado para poder cambiarlo en un clic.
+ */
 export const identifyContent = async (
   hints: IdentificationHints,
   provider: MetadataProvider,
   options: IdentifyOptions = {},
 ): Promise<IdentificationOutcome> => {
   const base = identificationFromHints(hints);
-  if (!provider.available || hints.titleGuess.length === 0) {
-    return { identification: base, candidates: [], error: undefined };
-  }
+  const kind = hints.kind === "series" ? "series" : "movie";
+  // Una corrección previa sobre la misma obra pesa en la puntuación.
+  const learned = recallCorrection(hints.titleGuess, kind);
+  const previouslySelectedId = options.previouslySelectedId ?? learned;
 
-  let found: readonly ProviderCandidate[];
-  try {
-    found = await provider.search(
-      {
-        title: hints.titleGuess,
-        year: hints.year,
-        kind: hints.kind === "series" ? "series" : "movie",
-      },
-      options.signal,
-    );
-  } catch (error) {
+  const outcome = await resolveWork(
+    {
+      hints,
+      ...(options.runtimeMinutes === undefined ? {} : { runtimeMinutes: options.runtimeMinutes }),
+      ...(options.audioLanguages === undefined ? {} : { audioLanguages: options.audioLanguages }),
+      ...(options.parentFolderName === undefined
+        ? {}
+        : { parentFolderName: options.parentFolderName }),
+    },
+    provider,
+    {
+      ...(options.signal === undefined ? {} : { signal: options.signal }),
+      ...(previouslySelectedId === undefined ? {} : { previouslySelectedId }),
+    },
+  );
+
+  if (outcome.candidate === undefined) {
     return {
-      identification: base,
-      candidates: [],
-      error: error instanceof Error ? error : new Error(String(error)),
+      identification: { ...base, alternatives: outcome.alternatives },
+      candidates: outcome.alternatives,
+      attempts: outcome.attempts,
+      error: outcome.error,
     };
   }
 
-  if (found.length === 0) return { identification: base, candidates: [], error: undefined };
-
-  const ranked = rankTmdbCandidates(
-    {
-      title: hints.titleGuess,
-      ...(hints.year === undefined ? {} : { year: hints.year }),
-      ...(options.previouslySelectedId === undefined
-        ? {}
-        : { previouslySelectedTmdbId: options.previouslySelectedId }),
-    },
-    found.map(toScoringCandidate),
-  );
-
-  const byId = new Map(found.map((candidate) => [candidate.id, candidate]));
-  const summaries = ranked.candidates.flatMap((scored) => {
-    const candidate = byId.get(scored.candidate.id);
-    return candidate === undefined
-      ? []
-      : [summarize(candidate, scored.score, scored.band, scored.components)];
-  });
-
-  const best = ranked.candidates[0];
-  const autoBand = options.autoApplyBand ?? "high";
-  const canAutoApply =
-    best !== undefined &&
-    (best.band === "high" || (autoBand === "medium" && best.band === "medium")) &&
-    (ranked.autoSelectedId !== undefined || autoBand === "medium");
-
-  if (best === undefined || !canAutoApply) {
-    return { identification: base, candidates: summaries, error: undefined };
-  }
-
-  const chosen = byId.get(best.candidate.id);
-  if (chosen === undefined)
-    return { identification: base, candidates: summaries, error: undefined };
+  // El proveedor sabe mejor que el nombre si es película o serie.
+  const withKind: ContentIdentification = { ...base, kind: outcome.kind };
 
   return {
-    identification: await applyCandidate(base, chosen, provider, {
-      score: best.score,
-      band: best.band,
-      components: best.components,
-      alternatives: summaries,
+    identification: await applyCandidate(withKind, outcome.candidate, provider, {
+      score: outcome.score ?? 0,
+      band: outcome.band,
+      components: outcome.components,
+      alternatives: outcome.alternatives,
       ...(options.signal === undefined ? {} : { signal: options.signal }),
     }),
-    candidates: summaries,
-    error: undefined,
+    candidates: outcome.alternatives,
+    attempts: outcome.attempts,
+    error: outcome.error,
   };
 };
 
@@ -145,8 +111,9 @@ export const applyCandidate = async (
   const episode = base.episode.value;
   if (base.kind === "series" && season !== undefined && episode !== undefined) {
     try {
-      const details = await provider.getEpisode(candidate.id, season, episode, context.signal);
-      episodeTitle = details?.title;
+      // Una llamada por temporada, no una por episodio.
+      const episodes = await provider.getSeasonEpisodes(candidate.id, season, context.signal);
+      episodeTitle = episodes.get(episode);
     } catch {
       episodeTitle = undefined;
     }
