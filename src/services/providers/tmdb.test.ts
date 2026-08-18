@@ -52,10 +52,12 @@ describe("proveedor TMDb", () => {
 
     expect(results[0]).toEqual({
       id: 693134,
+      kind: "movie",
       spanishTitle: "Dune: Parte dos",
       originalTitle: "Dune: Part Two",
       originalLanguage: "en",
       year: 2024,
+      runtimeMinutes: undefined,
       posterUrl: "https://image.tmdb.org/t/p/w185/abc.jpg",
       overview: undefined,
     });
@@ -182,5 +184,106 @@ describe("modo sin proveedor", () => {
     expect(nullMetadataProvider.available).toBe(false);
     await expect(nullMetadataProvider.search({ title: "X", kind: "movie" })).resolves.toEqual([]);
     await expect(nullMetadataProvider.getEpisode(1, 1, 1)).resolves.toBeUndefined();
+  });
+});
+
+describe("createTmdbProvider — búsqueda multi", () => {
+  it("devuelve películas y series con su tipo y descarta personas", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              results: [
+                { id: 1, media_type: "movie", title: "Dune", release_date: "2021-09-15" },
+                {
+                  id: 2,
+                  media_type: "tv",
+                  name: "Dune: La profecía",
+                  first_air_date: "2024-11-17",
+                },
+                { id: 3, media_type: "person", name: "Denis Villeneuve" },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          ),
+        ),
+      ),
+    );
+
+    const provider = createTmdbProvider({ key: "clave" });
+    const results = await provider.searchMulti("Dune");
+
+    expect(results).toHaveLength(2);
+    expect(results[0]).toMatchObject({ id: 1, kind: "movie", spanishTitle: "Dune", year: 2021 });
+    expect(results[1]).toMatchObject({ id: 2, kind: "series", year: 2024 });
+  });
+});
+
+describe("createTmdbProvider — identificador externo", () => {
+  it("resuelve un identificador de IMDb", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              movie_results: [{ id: 949, title: "Heat", release_date: "1995-12-15" }],
+              tv_results: [],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          ),
+        ),
+      ),
+    );
+
+    const provider = createTmdbProvider({ key: "clave" });
+    const found = await provider.findByExternalId({ provider: "imdb", imdbId: "tt0113277" });
+
+    expect(found).toMatchObject({ id: 949, kind: "movie", spanishTitle: "Heat" });
+  });
+});
+
+describe("createTmdbProvider — temporada completa", () => {
+  it("devuelve los títulos de episodio en una sola llamada", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(
+          JSON.stringify({
+            episodes: [
+              { episode_number: 1, name: "Cuando estés perdido en la oscuridad" },
+              { episode_number: 3, name: "Mucho mucho tiempo" },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const provider = createTmdbProvider({ key: "clave" });
+    const episodes = await provider.getSeasonEpisodes(100088, 1);
+
+    expect(episodes.get(3)).toBe("Mucho mucho tiempo");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("cachea la temporada: la segunda consulta no vuelve a la red", async () => {
+    const fetchMock = vi.fn(() =>
+      Promise.resolve(
+        new Response(JSON.stringify({ episodes: [{ episode_number: 1, name: "Piloto" }] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const provider = createTmdbProvider({ key: "clave" });
+    await provider.getSeasonEpisodes(1, 1);
+    await provider.getSeasonEpisodes(1, 1);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

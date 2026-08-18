@@ -1,10 +1,12 @@
 import { z } from "zod";
 
+import type { EmbeddedId } from "../../domain/identification/embedded-ids";
 import {
   MetadataProviderError,
   type EpisodeDetails,
   type MetadataProvider,
   type ProviderCandidate,
+  type WorkKind,
   type WorkSearchQuery,
 } from "./types";
 
@@ -28,6 +30,7 @@ const POSTER_PATH = /^\/[A-Za-z0-9._-]+$/u;
 
 const movieResultSchema = z.object({
   id: z.number().int().positive(),
+  runtime: z.number().optional(),
   title: z.string().optional(),
   original_title: z.string().optional(),
   original_language: z.string().optional(),
@@ -38,6 +41,7 @@ const movieResultSchema = z.object({
 
 const seriesResultSchema = z.object({
   id: z.number().int().positive(),
+  episode_run_time: z.array(z.number()).optional(),
   name: z.string().optional(),
   original_name: z.string().optional(),
   original_language: z.string().optional(),
@@ -49,6 +53,34 @@ const seriesResultSchema = z.object({
 const searchSchema = z.object({
   results: z.array(z.unknown()).default([]),
   total_results: z.number().optional(),
+});
+
+/** Forma común de película y serie: TMDb usa nombres distintos para lo mismo. */
+const anyResultSchema = z.object({
+  id: z.number().int().positive(),
+  media_type: z.string().optional(),
+  title: z.string().optional(),
+  name: z.string().optional(),
+  original_title: z.string().optional(),
+  original_name: z.string().optional(),
+  original_language: z.string().optional(),
+  release_date: z.string().optional(),
+  first_air_date: z.string().optional(),
+  poster_path: z.string().nullable().optional(),
+  overview: z.string().optional(),
+  runtime: z.number().optional(),
+  episode_run_time: z.array(z.number()).optional(),
+});
+
+const findSchema = z.object({
+  movie_results: z.array(z.unknown()).default([]),
+  tv_results: z.array(z.unknown()).default([]),
+});
+
+const seasonSchema = z.object({
+  episodes: z
+    .array(z.object({ episode_number: z.number().int(), name: z.string().optional() }))
+    .default([]),
 });
 
 const episodeSchema = z.object({
@@ -201,10 +233,12 @@ export const createTmdbProvider = (credentials: TmdbCredentials): MetadataProvid
         if (title === undefined) continue;
         candidates.push({
           id: item.id,
+          kind: "movie",
           spanishTitle: title,
           originalTitle: emptyToUndefined(item.original_title),
           originalLanguage: emptyToUndefined(item.original_language),
           year: yearOf(item.release_date),
+          runtimeMinutes: item.runtime,
           posterUrl: posterUrl(item.poster_path),
           overview: emptyToUndefined(item.overview),
         });
@@ -216,10 +250,12 @@ export const createTmdbProvider = (credentials: TmdbCredentials): MetadataProvid
         if (title === undefined) continue;
         candidates.push({
           id: item.id,
+          kind: "series",
           spanishTitle: title,
           originalTitle: emptyToUndefined(item.original_name),
           originalLanguage: emptyToUndefined(item.original_language),
           year: yearOf(item.first_air_date),
+          runtimeMinutes: item.episode_run_time?.[0],
           posterUrl: posterUrl(item.poster_path),
           overview: emptyToUndefined(item.overview),
         });
@@ -228,6 +264,152 @@ export const createTmdbProvider = (credentials: TmdbCredentials): MetadataProvid
 
     cache.set(cacheKey(query), candidates);
     return candidates;
+  };
+
+  /** Convierte cualquier resultado de TMDb al candidato del dominio. */
+  const toCandidate = (raw: unknown, forcedKind?: WorkKind): ProviderCandidate | undefined => {
+    const parsed = anyResultSchema.safeParse(raw);
+    if (!parsed.success) return undefined;
+    const item = parsed.data;
+
+    const kind: WorkKind | undefined =
+      forcedKind ??
+      (item.media_type === "movie" ? "movie" : item.media_type === "tv" ? "series" : undefined);
+    // `person` y cualquier otro tipo se descartan antes de puntuar.
+    if (kind === undefined) return undefined;
+
+    const title =
+      emptyToUndefined(item.title) ??
+      emptyToUndefined(item.name) ??
+      emptyToUndefined(item.original_title) ??
+      emptyToUndefined(item.original_name);
+    if (title === undefined) return undefined;
+
+    return {
+      id: item.id,
+      kind,
+      spanishTitle: title,
+      originalTitle: emptyToUndefined(item.original_title) ?? emptyToUndefined(item.original_name),
+      originalLanguage: emptyToUndefined(item.original_language),
+      year: yearOf(item.release_date ?? item.first_air_date),
+      runtimeMinutes: item.runtime ?? item.episode_run_time?.[0],
+      posterUrl: posterUrl(item.poster_path),
+      overview: emptyToUndefined(item.overview),
+    };
+  };
+
+  const multiCache = new Map<string, readonly ProviderCandidate[]>();
+
+  /** Deja que TMDb decida si es película o serie: el nombre no siempre lo dice. */
+  const searchMulti = async (
+    title: string,
+    signal?: AbortSignal,
+  ): Promise<readonly ProviderCandidate[]> => {
+    ensureKey();
+    const cacheId = title.toLowerCase();
+    const cached = multiCache.get(cacheId);
+    if (cached !== undefined) return cached;
+
+    const payload = searchSchema.safeParse(
+      await requestJson(
+        "/search/multi",
+        { query: title, language: "es-ES", include_adult: "false" },
+        key,
+        signal,
+      ),
+    );
+    if (!payload.success) return [];
+
+    const candidates = payload.data.results.slice(0, 10).flatMap((raw) => {
+      const candidate = toCandidate(raw);
+      return candidate === undefined ? [] : [candidate];
+    });
+    multiCache.set(cacheId, candidates);
+    return candidates;
+  };
+
+  const findByExternalId = async (
+    id: EmbeddedId,
+    signal?: AbortSignal,
+  ): Promise<ProviderCandidate | undefined> => {
+    ensureKey();
+
+    if (id.provider === "tmdb") {
+      // El identificador no dice si es película o serie: se prueban los dos.
+      const paths = [
+        { path: `/movie/${String(id.tmdbId)}`, kind: "movie" as const },
+        { path: `/tv/${String(id.tmdbId)}`, kind: "series" as const },
+      ];
+      for (const entry of paths) {
+        try {
+          const payload = await requestJson(entry.path, { language: "es-ES" }, key, signal);
+          const candidate = toCandidate(payload, entry.kind);
+          if (candidate !== undefined) return candidate;
+        } catch (error) {
+          const notFound = error instanceof MetadataProviderError && error.code === "not-found";
+          if (!notFound) throw error;
+        }
+      }
+      return undefined;
+    }
+
+    const payload = findSchema.safeParse(
+      await requestJson(
+        `/find/${id.imdbId}`,
+        { language: "es-ES", external_source: "imdb_id" },
+        key,
+        signal,
+      ),
+    );
+    if (!payload.success) return undefined;
+
+    const movie = payload.data.movie_results[0];
+    if (movie !== undefined) return toCandidate(movie, "movie");
+    const series = payload.data.tv_results[0];
+    return series === undefined ? undefined : toCandidate(series, "series");
+  };
+
+  const seasonCache = new Map<string, ReadonlyMap<number, string>>();
+
+  /**
+   * Una llamada por temporada en lugar de una por episodio: 24 capítulos pasan
+   * de 24 peticiones a 1.
+   */
+  const getSeasonEpisodes = async (
+    seriesId: number,
+    season: number,
+    signal?: AbortSignal,
+  ): Promise<ReadonlyMap<number, string>> => {
+    ensureKey();
+    const cacheId = `${String(seriesId)}|${String(season)}`;
+    const cached = seasonCache.get(cacheId);
+    if (cached !== undefined) return cached;
+
+    let payload: unknown;
+    try {
+      payload = await requestJson(
+        `/tv/${String(seriesId)}/season/${String(season)}`,
+        { language: "es-ES" },
+        key,
+        signal,
+      );
+    } catch (error) {
+      if (error instanceof MetadataProviderError && error.code === "not-found") {
+        return new Map<number, string>();
+      }
+      throw error;
+    }
+
+    const parsed = seasonSchema.safeParse(payload);
+    const episodes = new Map<number, string>();
+    if (parsed.success) {
+      for (const episode of parsed.data.episodes) {
+        const title = emptyToUndefined(episode.name);
+        if (title !== undefined) episodes.set(episode.episode_number, title);
+      }
+    }
+    seasonCache.set(cacheId, episodes);
+    return episodes;
   };
 
   const getEpisode = async (
@@ -275,6 +457,9 @@ export const createTmdbProvider = (credentials: TmdbCredentials): MetadataProvid
       homepage: "https://www.themoviedb.org/",
     },
     search,
+    searchMulti,
+    findByExternalId,
+    getSeasonEpisodes,
     getEpisode,
   };
 };

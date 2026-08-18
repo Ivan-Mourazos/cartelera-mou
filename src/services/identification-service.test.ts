@@ -9,10 +9,18 @@ const providerWith = (
   candidates: readonly ProviderCandidate[],
   episodeTitle?: string,
 ): MetadataProvider => ({
+  ...nullMetadataProvider,
   id: "tmdb",
   available: true,
   attribution: { name: "TMDb", notice: "", logoUrl: undefined, homepage: "" },
   search: () => Promise.resolve(candidates),
+  searchMulti: () => Promise.resolve(candidates),
+  getSeasonEpisodes: () =>
+    Promise.resolve(
+      episodeTitle === undefined
+        ? new Map<number, string>()
+        : new Map<number, string>([[3, episodeTitle]]),
+    ),
   getEpisode: () =>
     Promise.resolve(
       episodeTitle === undefined ? undefined : { title: episodeTitle, airYear: 2023 },
@@ -26,10 +34,12 @@ const candidate = (
   originalTitle = spanishTitle,
 ): ProviderCandidate => ({
   id,
+  kind: "movie",
   spanishTitle,
   originalTitle,
   originalLanguage: "en",
   year,
+  runtimeMinutes: undefined,
   posterUrl: undefined,
   overview: undefined,
 });
