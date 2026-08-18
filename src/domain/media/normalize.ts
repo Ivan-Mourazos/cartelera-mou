@@ -3,8 +3,9 @@ import { resolveSpanishVariant, spanishVariantFromTitle } from "./language";
 import { confirmed, inferred, unknown } from "./provenance";
 import { toInteger, toNumber, toText, type RawMediaInfo } from "./raw";
 import { detectSourceFromFilename } from "./source";
+import { inferSourceFromStream, type InferredSource } from "./source-inference";
 import { normalizeSubtitleTrack } from "./subtitles";
-import type { GeneralInfo, NormalizedMedia } from "./types";
+import type { GeneralInfo, NormalizedMedia, SourceInfo, SourceType } from "./types";
 import { normalizeVideoTrack } from "./video";
 
 const CONTAINER = "CONTAINER_METADATA" as const;
@@ -54,6 +55,25 @@ const buildGeneral = (
       const library = toText(general?.Encoded_Library);
       return library === undefined ? unknown<string>(CONTAINER) : confirmed(library, CONTAINER);
     })(),
+  };
+};
+
+/**
+ * La etiqueta del nombre gana siempre; la heurística del stream solo rellena el
+ * hueco cuando el nombre no declara ninguna fuente.
+ */
+const resolveSource = (fromFilename: SourceInfo, fromStream: InferredSource): SourceInfo => {
+  if (fromFilename.media.value !== undefined) return fromFilename;
+  if (fromStream.value === undefined) return fromFilename;
+  return {
+    media: fromStream.traced,
+    type: fromStream.remux
+      ? inferred<SourceType>(
+          "REMUX",
+          "DERIVED",
+          fromStream.traced.note ?? "REMUX deducido del bitrate",
+        )
+      : fromFilename.type,
   };
 };
 
@@ -110,7 +130,14 @@ export const normalizeMediaInfo = (
     video,
     audio,
     subtitles,
-    source: detectSourceFromFilename(filename),
+    source: resolveSource(
+      detectSourceFromFilename(filename),
+      inferSourceFromStream({
+        overallBitrateBps: toInteger(raw.general?.OverallBitRate),
+        videoCodec: video[0]?.codec.value,
+        pixelLabel: video[0]?.resolution.value?.pixelLabel,
+      }),
+    ),
     warnings,
   };
 };
