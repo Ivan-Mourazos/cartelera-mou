@@ -55,6 +55,15 @@ export interface MetadataProvider {
     id: EmbeddedId,
     signal?: AbortSignal,
   ) => Promise<ProviderCandidate | undefined>;
+  /**
+   * Ficha completa de una obra. La búsqueda NO devuelve la duración, que es la
+   * señal más fuerte para distinguir un remake de su original.
+   */
+  getDetails: (
+    id: number,
+    kind: WorkKind,
+    signal?: AbortSignal,
+  ) => Promise<ProviderCandidate | undefined>;
   /** Títulos de toda una temporada en una sola llamada. */
   getSeasonEpisodes: (
     seriesId: number,
@@ -100,6 +109,7 @@ export const nullMetadataProvider: MetadataProvider = {
   search: () => Promise.resolve([]),
   searchMulti: () => Promise.resolve([]),
   findByExternalId: () => Promise.resolve(undefined),
+  getDetails: () => Promise.resolve(undefined),
   getSeasonEpisodes: () => Promise.resolve(new Map<number, string>()),
   getEpisode: () => Promise.resolve(undefined),
 };

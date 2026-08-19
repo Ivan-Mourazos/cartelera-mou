@@ -369,6 +369,35 @@ export const createTmdbProvider = (credentials: TmdbCredentials): MetadataProvid
     return series === undefined ? undefined : toCandidate(series, "series");
   };
 
+  const detailsCache = new Map<string, ProviderCandidate | undefined>();
+
+  /** Ficha completa, con `runtime`. Cacheada: dos archivos de la misma obra la comparten. */
+  const getDetails = async (
+    id: number,
+    kind: WorkKind,
+    signal?: AbortSignal,
+  ): Promise<ProviderCandidate | undefined> => {
+    ensureKey();
+    const cacheId = `${kind}|${String(id)}`;
+    if (detailsCache.has(cacheId)) return detailsCache.get(cacheId);
+
+    let details: ProviderCandidate | undefined;
+    try {
+      const payload = await requestJson(
+        `${kind === "movie" ? "/movie" : "/tv"}/${String(id)}`,
+        { language: "es-ES" },
+        key,
+        signal,
+      );
+      details = toCandidate(payload, kind);
+    } catch {
+      details = undefined;
+    }
+
+    detailsCache.set(cacheId, details);
+    return details;
+  };
+
   const seasonCache = new Map<string, ReadonlyMap<number, string>>();
 
   /**
@@ -459,6 +488,7 @@ export const createTmdbProvider = (credentials: TmdbCredentials): MetadataProvid
     search,
     searchMulti,
     findByExternalId,
+    getDetails,
     getSeasonEpisodes,
     getEpisode,
   };

@@ -16,6 +16,8 @@ export interface TmdbMovieCandidate {
   readonly alternativeTitles?: readonly string[];
   readonly releaseYear?: number;
   readonly runtimeMinutes?: number;
+  /** Posición en la respuesta del proveedor: su relevancia también es un dato. */
+  readonly providerOrder?: number;
 }
 
 export type MatchBand = "high" | "medium" | "low";
@@ -30,6 +32,7 @@ export interface MatchScoreComponent {
     | "year-close"
     | "year-different"
     | "original-language-present"
+    | "provider-relevance"
     | "runtime-compatible"
     | "runtime-close"
     | "runtime-different"
@@ -210,6 +213,18 @@ const scoreRawCandidate = (query: TmdbMatchQuery, candidate: TmdbMovieCandidate)
       code: "original-language-present",
       points: 10,
       explanation: `El idioma original (${originalLanguage}) está entre las pistas: +10`,
+    });
+  }
+
+  // El proveedor ordena por relevancia y popularidad. Es una señal débil, pero
+  // desempata cuando el título por sí solo es ambiguo («Venom 2», «Capitan America»).
+  const order = candidate.providerOrder;
+  if (order !== undefined && order < 3) {
+    const points = [8, 5, 3][order] ?? 0;
+    components.push({
+      code: "provider-relevance",
+      points,
+      explanation: `Resultado n.º ${String(order + 1)} por relevancia en el proveedor: +${String(points)}`,
     });
   }
 

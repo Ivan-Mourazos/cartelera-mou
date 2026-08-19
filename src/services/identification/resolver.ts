@@ -45,6 +45,9 @@ export interface ResolveOptions {
   readonly previouslySelectedId?: number | undefined;
 }
 
+/** Cuántos candidatos se hidratan con su ficha completa antes de puntuar. */
+const HYDRATE_LIMIT = 4;
+
 const LEADING_ARTICLE = /^(?:el|la|los|las|un|una|the|a|an)\s+/iu;
 const DOMAIN = /\b(?:www\.)?[a-z0-9-]+\.(?:com|net|org|es|tv|to|cc|io|me)\b/giu;
 const DOWNLOAD_NOISE = /\b(?:descargar|gratis|torrent|castellano|latino|vose|dual|multi)\b/giu;
@@ -62,8 +65,9 @@ export const normalizeTitleForSearch = (title: string): string =>
     .replace(LEADING_ARTICLE, "")
     .trim();
 
-const toScoring = (candidate: ProviderCandidate): TmdbMovieCandidate => ({
+const toScoring = (candidate: ProviderCandidate, order?: number): TmdbMovieCandidate => ({
   id: candidate.id,
+  ...(order === undefined ? {} : { providerOrder: order }),
   title: candidate.spanishTitle,
   ...(candidate.originalTitle === undefined ? {} : { originalTitle: candidate.originalTitle }),
   ...(candidate.originalLanguage === undefined
@@ -214,6 +218,28 @@ export const resolveWork = async (
     }
     if (found.length === 0) continue;
 
+    // La búsqueda de TMDb no trae la duración, que es lo único que distingue de
+    // verdad un remake de su original. Se pide la ficha de los primeros
+    // candidatos —cacheada— solo cuando el archivo tiene duración legible.
+    const hydrated =
+      input.runtimeMinutes === undefined || found.length < 2
+        ? found
+        : await Promise.all(
+            found.map(async (candidate, order) => {
+              if (order >= HYDRATE_LIMIT || candidate.runtimeMinutes !== undefined) {
+                return candidate;
+              }
+              try {
+                const details = await provider.getDetails(candidate.id, candidate.kind, signal);
+                return details?.runtimeMinutes === undefined
+                  ? candidate
+                  : { ...candidate, runtimeMinutes: details.runtimeMinutes };
+              } catch {
+                return candidate;
+              }
+            }),
+          );
+
     const ranked = rankTmdbCandidates(
       {
         title: hints.titleGuess,
@@ -224,10 +250,10 @@ export const resolveWork = async (
           ? {}
           : { previouslySelectedTmdbId: options.previouslySelectedId }),
       },
-      found.map(toScoring),
+      hydrated.map((candidate, order) => toScoring(candidate, order)),
     );
 
-    const byId = new Map(found.map((entry) => [entry.id, entry]));
+    const byId = new Map(hydrated.map((entry) => [entry.id, entry]));
     const summaries = ranked.candidates.flatMap((scored) => {
       const entry = byId.get(scored.candidate.id);
       return entry === undefined

@@ -156,3 +156,98 @@ describe("normalizeTitleForSearch", () => {
     expect(normalizeTitleForSearch("Dune Parte Dos")).toBe("Dune Parte Dos");
   });
 });
+
+describe("resolveWork — duración de la ficha completa", () => {
+  it("pide la ficha de los candidatos y descarta el remake por duración", async () => {
+    // La búsqueda de TMDb NO devuelve `runtime`: sin pedir la ficha, un archivo
+    // de 4K REMUX de 2 h se emparejaba con la película homónima de 1990.
+    // Tal y como los devuelve `/search/movie`: sin duración.
+    const antiguo = candidate({
+      id: 1,
+      spanishTitle: "Capitán América",
+      year: 1990,
+      runtimeMinutes: undefined,
+    });
+    const moderno = candidate({
+      id: 2,
+      spanishTitle: "Capitán América",
+      year: 2011,
+      runtimeMinutes: undefined,
+    });
+    const runtimes = new Map([
+      [1, 97],
+      [2, 124],
+    ]);
+
+    const getDetails = vi.fn((id: number) =>
+      Promise.resolve(candidate({ id, runtimeMinutes: runtimes.get(id) })),
+    );
+    const provider = providerWith({
+      search: vi.fn(() => Promise.resolve([antiguo, moderno])),
+      getDetails,
+    });
+
+    const outcome = await resolveWork(
+      { hints: extractIdentificationHints("Capitan America 4Kremux2160.mkv"), runtimeMinutes: 124 },
+      provider,
+    );
+
+    expect(getDetails).toHaveBeenCalled();
+    expect(outcome.candidate?.id).toBe(2);
+  });
+
+  it("no pide fichas cuando el archivo no tiene duración legible", async () => {
+    const getDetails = vi.fn(() => Promise.resolve(undefined));
+    const provider = providerWith({
+      search: vi.fn(() =>
+        Promise.resolve([
+          candidate({ id: 1, runtimeMinutes: undefined }),
+          candidate({ id: 2, runtimeMinutes: undefined }),
+        ]),
+      ),
+      getDetails,
+    });
+
+    await resolveWork({ hints: extractIdentificationHints("Peli.2020.mkv") }, provider);
+
+    expect(getDetails).not.toHaveBeenCalled();
+  });
+
+  it("sigue adelante si la ficha falla", async () => {
+    const provider = providerWith({
+      search: vi.fn(() =>
+        Promise.resolve([
+          candidate({ id: 1, runtimeMinutes: undefined }),
+          candidate({ id: 2, runtimeMinutes: undefined }),
+        ]),
+      ),
+      getDetails: vi.fn(() => Promise.reject(new Error("TMDb caído"))),
+    });
+
+    const outcome = await resolveWork(
+      { hints: extractIdentificationHints("Peli.2020.mkv"), runtimeMinutes: 100 },
+      provider,
+    );
+
+    expect(outcome.candidate).toBeDefined();
+    expect(outcome.error).toBeUndefined();
+  });
+
+  it("la relevancia del proveedor desempata títulos igual de parecidos", async () => {
+    const provider = providerWith({
+      search: vi.fn(() =>
+        Promise.resolve([
+          candidate({ id: 10, spanishTitle: "Venom: Habrá matanza", year: 2021 }),
+          candidate({ id: 11, spanishTitle: "Veneno mortal", year: 2002 }),
+        ]),
+      ),
+    });
+
+    const outcome = await resolveWork(
+      { hints: extractIdentificationHints("Venom 2 4Kremux2160.mkv") },
+      provider,
+    );
+
+    expect(outcome.candidate?.id).toBe(10);
+  });
+});
