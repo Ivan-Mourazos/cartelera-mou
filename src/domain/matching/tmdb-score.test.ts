@@ -9,7 +9,7 @@ describe("TMDb auditable matching", () => {
     );
 
     expect(result.band).toBe("high");
-    expect(result.score).toBe(110);
+    expect(result.score).toBe(115);
     expect(result.components.map((component) => component.code)).toEqual([
       "title-exact",
       "year-exact",
@@ -118,5 +118,52 @@ describe("popularidad como desempate", () => {
     expect(
       ranked.candidates[0]?.components.every((component) => component.code !== "popularity"),
     ).toBe(true);
+  });
+});
+
+describe("entregas de una misma saga", () => {
+  // Caso real: «Capitan America 4Kremux2160», sin año en el nombre. El archivo
+  // dura 124 min, que es «El primer vengador»; «Brave New World» dura 118 y es
+  // mucho más popular por ser un estreno reciente.
+  const query = { title: "Capitan America", runtimeMinutes: 124 } as const;
+  const primerVengador = {
+    id: 1771,
+    title: "Capitán América: El primer vengador",
+    releaseYear: 2011,
+    runtimeMinutes: 124,
+    popularity: 40,
+    providerOrder: 1,
+  } as const;
+  const braveNewWorld = {
+    id: 822119,
+    title: "Capitán América: Brave New World",
+    releaseYear: 2025,
+    runtimeMinutes: 118,
+    popularity: 250,
+    providerOrder: 0,
+  } as const;
+
+  it("la duración exacta gana a la aproximada aunque la otra sea más popular", () => {
+    const ranked = rankTmdbCandidates(query, [braveNewWorld, primerVengador]);
+    expect(ranked.candidates[0]?.candidate.id).toBe(1771);
+  });
+
+  it("clavar la duración puntúa más que quedarse cerca", () => {
+    const exact = scoreTmdbCandidate(query, primerVengador);
+    const close = scoreTmdbCandidate(query, braveNewWorld);
+    const pointsFor = (result: typeof exact, code: string): number =>
+      result.components.find((component) => component.code === code)?.points ?? 0;
+
+    expect(pointsFor(exact, "runtime-compatible")).toBeGreaterThan(
+      pointsFor(close, "runtime-close") + pointsFor(close, "runtime-compatible"),
+    );
+  });
+
+  it("descarta la de 1990 por duración imposible", () => {
+    const ranked = rankTmdbCandidates(query, [
+      { id: 13995, title: "Capitán América", releaseYear: 1990, runtimeMinutes: 97 },
+      primerVengador,
+    ]);
+    expect(ranked.candidates[0]?.candidate.id).toBe(1771);
   });
 });

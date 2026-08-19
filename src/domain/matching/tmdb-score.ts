@@ -176,30 +176,53 @@ const scoreRawCandidate = (query: TmdbMatchQuery, candidate: TmdbMovieCandidate)
   // La duración es la señal que separa remakes, cortos y episodios sueltos de la
   // película homónima. Se mide en proporción, no en minutos absolutos: 10 min de
   // diferencia no significan lo mismo en un corto que en una película de 3 horas.
+  /**
+   * Duración, graduada.
+   *
+   * Una banda plana «±5 % vale igual» anulaba la señal justo cuando más falta
+   * hace: entre dos entregas de la misma saga, `El primer vengador` (124 min) y
+   * `Brave New World` (118) caían las dos dentro del 5 % de un archivo de 124
+   * minutos y empataban. Clavarla tiene que valer más que aproximarla.
+   */
   const candidateRuntime = candidate.runtimeMinutes;
   if (
     query.runtimeMinutes !== undefined &&
     candidateRuntime !== undefined &&
     candidateRuntime > 0
   ) {
-    const deviation = Math.abs(candidateRuntime - query.runtimeMinutes) / candidateRuntime;
-    if (deviation <= 0.05) {
-      components.push({
-        code: "runtime-compatible",
-        points: 30,
-        explanation: `Duración compatible (${String(candidateRuntime)} min): +30`,
-      });
-    } else if (deviation > 0.2) {
+    const minutes = Math.abs(candidateRuntime - query.runtimeMinutes);
+    const deviation = minutes / candidateRuntime;
+    const detail = `${String(candidateRuntime)} min frente a ${String(query.runtimeMinutes)} min`;
+
+    if (deviation > 0.2) {
       components.push({
         code: "runtime-different",
         points: -40,
-        explanation: `Duración muy distinta (${String(candidateRuntime)} min frente a ${String(query.runtimeMinutes)} min): -40`,
+        explanation: `Duración muy distinta (${detail}): -40`,
+      });
+    } else if (minutes <= 1) {
+      components.push({
+        code: "runtime-compatible",
+        points: 35,
+        explanation: `Duración exacta (${detail}): +35`,
+      });
+    } else if (deviation <= 0.03) {
+      components.push({
+        code: "runtime-compatible",
+        points: 26,
+        explanation: `Duración casi exacta (${detail}): +26`,
+      });
+    } else if (deviation <= 0.05) {
+      components.push({
+        code: "runtime-close",
+        points: 16,
+        explanation: `Duración compatible (${detail}): +16`,
       });
     } else {
       components.push({
         code: "runtime-close",
-        points: 10,
-        explanation: `Duración parecida (${String(candidateRuntime)} min): +10`,
+        points: 6,
+        explanation: `Duración parecida (${detail}): +6`,
       });
     }
   }
@@ -222,7 +245,9 @@ const scoreRawCandidate = (query: TmdbMatchQuery, candidate: TmdbMovieCandidate)
   // desempata cuando el título por sí solo es ambiguo («Venom 2», «Capitan America»).
   const order = candidate.providerOrder;
   if (order !== undefined && order < 3) {
-    const points = [8, 5, 3][order] ?? 0;
+    // Peso corto a propósito: TMDb ordena por popularidad, que ya se puntúa
+    // aparte. Cobrarla dos veces empujaba siempre hacia el estreno más reciente.
+    const points = [4, 2, 1][order] ?? 0;
     components.push({
       code: "provider-relevance",
       points,
