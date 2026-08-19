@@ -17,7 +17,6 @@ export function App() {
             </span>
             <span className="brand-name">Renombrador</span>
           </div>
-          <div className="header-actions" id="header-actions" />
         </div>
       </header>
 

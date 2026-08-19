@@ -71,7 +71,8 @@ export const composeSourceLabel = (
   const media = usable(source.media);
   const isRemux = usable(source.type) === "REMUX";
 
-  if (media === undefined) return isRemux ? "REMUX" : undefined;
+  // REMUX sin soporte no significa nada: no se escribe suelto.
+  if (media === undefined) return undefined;
   return isRemux && media === "BluRay" ? "BluRay REMUX" : media;
 };
 

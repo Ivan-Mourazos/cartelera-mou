@@ -5,6 +5,7 @@ import {
   type Resolution,
   type VideoCodec,
 } from "../metadata";
+import { parseCompositeReleaseToken, websiteSpans } from "./composite-tokens";
 import type { FilenameTokenCategory, MutableFilenameToken, TokenizedFilename } from "./types";
 
 export interface ClassifiedFilename {
@@ -1002,8 +1003,56 @@ const firstMetadataIndex = (tokens: readonly MutableFilenameToken[]): number => 
   return index < 0 ? tokens.length : index;
 };
 
+/**
+ * Dominios de las webs de descarga (`www.pctnew.com`, `atomixhq.one`).
+ *
+ * El tokenizador los parte en trozos sueltos —`www`, `pctnew`, `com`— que sin
+ * marcar acababan dentro del título. Se marcan por posición, sin tocar el texto.
+ */
+const classifyWebsites = (tokenized: TokenizedFilename): void => {
+  const spans = websiteSpans(tokenized.stem);
+  if (spans.length === 0) return;
+
+  for (const token of tokenized.tokens) {
+    const inside = spans.some(([from, to]) => token.start >= from && token.end <= to);
+    if (inside) token.categories.add("website-noise");
+  }
+};
+
+/**
+ * Etiquetas pegadas en un solo token: `4Kremux2160`, `BDR1080`, `HD4K`.
+ *
+ * Se ejecuta antes que el resto de reglas para que el título termine justo
+ * donde empieza la etiqueta, que es lo que hace que TMDb encuentre la obra.
+ */
+const classifyCompositeTokens = (
+  tokens: MutableFilenameToken[],
+  evidence: MetadataEvidence[],
+): void => {
+  for (const [index, token] of tokens.entries()) {
+    if (token.categories.size > 0) continue;
+
+    const parsed = parseCompositeReleaseToken(token.raw);
+    if (parsed === undefined) continue;
+
+    const detail = `Etiqueta pegada «${token.raw}» = ${parsed.atoms.join(" + ")}`;
+
+    if (parsed.resolution !== undefined) {
+      add(evidence, tokens, [index], "resolution", "resolution", parsed.resolution, detail, 90);
+    }
+    if (parsed.source !== undefined) {
+      add(evidence, tokens, [index], "source", "mediaSource", parsed.source, detail, 90);
+    }
+    if (parsed.remux) {
+      add(evidence, tokens, [index], "release-type", "releaseType", "REMUX", detail, 90);
+    }
+  }
+};
+
 export const applyFilenameRules = (tokenized: TokenizedFilename): ClassifiedFilename => {
   const evidence: MetadataEvidence[] = [];
+  classifyWebsites(tokenized);
+  classifyCompositeTokens(tokenized.tokens, evidence);
   const year = classifyYearsAndResolutions(tokenized.tokens, evidence);
   classifyEpisodes(tokenized.tokens, evidence);
   classifyEditions(tokenized.tokens, evidence);

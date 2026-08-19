@@ -102,6 +102,16 @@ export function RenamerScreen() {
               <button type="button" className="btn btn-ghost" onClick={() => void openFolder()}>
                 <FolderOpen size={14} aria-hidden /> Abrir carpeta
               </button>
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={() => {
+                  setShowSettings(true);
+                }}
+                title="Configuración"
+              >
+                <Settings size={14} />
+              </button>
             </div>
 
             {state.provider.available ? null : (
@@ -132,6 +142,9 @@ export function RenamerScreen() {
             <section className="command-bar">
               <div className="counters">
                 <span className="counter-total">{state.items.length} archivos</span>
+                {state.counts.analyzing > 0 ? (
+                  <span className="counter c-idle">{state.counts.analyzing} analizando</span>
+                ) : null}
                 {state.counts.ready > 0 ? (
                   <span className="counter c-ready">{state.counts.ready} listos</span>
                 ) : null}
@@ -156,7 +169,7 @@ export function RenamerScreen() {
                 {pending.length > 0 ? (
                   <button
                     type="button"
-                    className="btn btn-review"
+                    className="btn btn-primary"
                     onClick={() => {
                       state.openReview(null);
                     }}
@@ -166,9 +179,14 @@ export function RenamerScreen() {
                 ) : null}
                 <button
                   type="button"
-                  className="btn btn-primary"
+                  className={pending.length > 0 ? "btn btn-ghost" : "btn btn-primary"}
                   onClick={state.openPreview}
                   disabled={state.plan.readyCount === 0 || state.progress.active}
+                  title={
+                    pending.length > 0
+                      ? `${String(pending.length)} archivo(s) siguen sin confirmar; se renombrarán igual si continúas`
+                      : "Previsualizar y renombrar"
+                  }
                 >
                   <Wand2 size={14} aria-hidden /> Renombrar {state.plan.readyCount}
                 </button>

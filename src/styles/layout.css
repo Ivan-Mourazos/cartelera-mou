@@ -63,12 +63,6 @@
   white-space: nowrap;
 }
 
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--gap-1);
-}
-
 /* ── Cuerpo ────────────────────────────────────────────────────────────── */
 
 .app-main {

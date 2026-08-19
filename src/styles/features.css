@@ -995,3 +995,7 @@
 .alert-warning {
   color: var(--warn);
 }
+
+.c-idle {
+  color: var(--text-faint);
+}
