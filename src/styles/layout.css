@@ -1,122 +1,101 @@
-.app-container {
+/**
+ * Estructura de la aplicación.
+ *
+ * Todo vive en una columna centrada de ancho fijo y todo lo accionable está
+ * arriba: el archivo que se está mirando nunca compite con una barra flotante
+ * al pie.
+ */
+
+.app {
+  min-height: 100%;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  width: 100%;
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 0 20px 120px 20px;
+  background:
+    radial-gradient(120% 60% at 50% -10%, rgb(201 162 39 / 5%), transparent 60%), var(--bg);
 }
+
+/* ── Cabecera ──────────────────────────────────────────────────────────── */
 
 .app-header {
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: 30;
+  border-bottom: 1px solid var(--line);
+  background-color: rgb(13 15 16 / 88%);
+  backdrop-filter: blur(12px);
+}
+
+.app-header-inner {
+  width: 100%;
+  max-width: var(--shell-width);
+  margin: 0 auto;
+  padding: 0 var(--gap-5);
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 64px;
-  padding: 0 4px;
-  background-color: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border-bottom: 1px solid var(--border-subtle);
-  margin-bottom: 24px;
+  gap: var(--gap-4);
 }
 
-.header-brand {
+.brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--gap-2);
+  min-width: 0;
 }
 
-.brand-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(135deg, var(--apple-blue), var(--apple-purple));
-  color: #ffffff;
-  box-shadow: 0 2px 8px var(--apple-blue-subtle);
+.brand-mark {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-sm);
+  background-color: var(--brass-dim);
+  border: 1px solid var(--brass-line);
+  color: var(--brass);
+  flex-shrink: 0;
 }
 
-.brand-title {
-  font-size: 16px;
+.brand-name {
+  font-size: var(--text-base);
   font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--text-primary);
-}
-
-.brand-badge {
-  font-size: 11px;
-  font-weight: 500;
-  padding: 2px 7px;
-  border-radius: var(--radius-full);
-  background: var(--apple-blue-subtle);
-  color: var(--apple-blue);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--gap-1);
 }
 
-.icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-full);
-  color: var(--text-secondary);
-  background: var(--apple-card);
-  border: 1px solid var(--border-subtle);
-  transition: all var(--transition);
-}
-
-.icon-button:hover {
-  color: var(--text-primary);
-  background: var(--apple-card-hover);
-  border-color: var(--border-strong);
-}
+/* ── Cuerpo ────────────────────────────────────────────────────────────── */
 
 .app-main {
+  flex: 1;
+  width: 100%;
+  max-width: var(--shell-width);
+  margin: 0 auto;
+  padding: var(--gap-5) var(--gap-5) var(--gap-6);
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  flex: 1;
+  gap: var(--gap-4);
 }
 
-/* Floating Action Dock */
-.floating-dock {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 40;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 14px;
-  background-color: var(--glass-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-full);
-  box-shadow: var(--shadow-dock);
-  animation: slideUp 240ms cubic-bezier(0.16, 1, 0.3, 1);
+.app-footer {
+  max-width: var(--shell-width);
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--gap-4) var(--gap-5) var(--gap-5);
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  text-align: center;
 }
 
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translate(-50%, 16px);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, 0);
+@media (width <= 720px) {
+  .app-header-inner,
+  .app-main {
+    padding-left: var(--gap-3);
+    padding-right: var(--gap-3);
   }
 }

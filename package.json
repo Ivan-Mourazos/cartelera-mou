@@ -14,7 +14,6 @@
     "check": "pnpm format:check && pnpm lint && pnpm test && pnpm build"
   },
   "dependencies": {
-    "@tanstack/react-virtual": "3.14.9",
     "lucide-react": "1.28.0",
     "mediainfo.js": "^0.3.7",
     "react": "19.2.8",

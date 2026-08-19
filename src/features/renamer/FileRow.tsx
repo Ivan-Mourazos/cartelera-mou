@@ -1,4 +1,4 @@
-import { AlertTriangle, Check, ChevronDown, Loader2, X } from "lucide-react";
+import { AlertTriangle, Check, Loader2, SlidersHorizontal, X } from "lucide-react";
 
 import { effectiveName, type MediaItem } from "../../services/item-pipeline";
 import { ROW_STATE_LABEL, type RowState } from "./row-model";
@@ -7,32 +7,30 @@ export interface FileRowProps {
   readonly item: MediaItem;
   readonly state: RowState;
   readonly selected: boolean;
-  readonly expanded: boolean;
-  readonly onToggleExpanded: (id: string) => void;
   readonly onToggleSelected: (id: string, withRange: boolean) => void;
   readonly onOverrideName: (id: string, value: string | undefined) => void;
+  readonly onReview: (id: string) => void;
   readonly onRemove: (id: string) => void;
 }
 
 /**
- * Fila compacta: el nombre propuesto en primer plano —que es lo que se va a
- * escribir— y el actual debajo, atenuado. El punto de estado a la izquierda
- * dice de un vistazo qué filas piden atención.
+ * Una línea por archivo: el nombre propuesto arriba, el actual debajo en
+ * secundario. Nada se despliega aquí; lo que necesita decisión se resuelve en el
+ * modo revisión, que es donde caben las opciones sin apretar la lista.
  */
 export const FileRow = ({
   item,
   state,
   selected,
-  expanded,
-  onToggleExpanded,
   onToggleSelected,
   onOverrideName,
+  onReview,
   onRemove,
 }: FileRowProps) => (
-  <div className={`file-row state-${state} ${selected ? "is-selected" : ""}`}>
+  <div className={`row state-${state} ${selected ? "is-selected" : ""}`}>
     <button
       type="button"
-      className={`row-state row-state-${state}`}
+      className={`row-dot dot-${state}`}
       title={`${ROW_STATE_LABEL[state]} · pulsa para seleccionar`}
       aria-label={ROW_STATE_LABEL[state]}
       aria-pressed={selected}
@@ -40,18 +38,18 @@ export const FileRow = ({
         onToggleSelected(item.id, event.shiftKey);
       }}
     >
-      {state === "analyzing" ? <Loader2 size={11} className="spin" aria-hidden /> : null}
-      {state === "error" ? <AlertTriangle size={11} aria-hidden /> : null}
-      {state === "ready" && item.status === "renamed" ? <Check size={11} aria-hidden /> : null}
+      {state === "analyzing" ? <Loader2 size={10} className="spin" aria-hidden /> : null}
+      {state === "error" ? <AlertTriangle size={10} aria-hidden /> : null}
+      {state === "ready" && item.status === "renamed" ? <Check size={10} aria-hidden /> : null}
     </button>
 
-    <div className="row-names">
+    <div className="row-text">
       <label className="visually-hidden" htmlFor={`name-${item.id}`}>
         Nombre propuesto para {item.currentName}
       </label>
       <input
         id={`name-${item.id}`}
-        className="row-proposed"
+        className="row-name"
         value={effectiveName(item)}
         spellCheck={false}
         onChange={(event) => {
@@ -65,31 +63,32 @@ export const FileRow = ({
           if (event.key === "Escape") onOverrideName(item.id, undefined);
         }}
       />
-      <div className="row-current" title={item.currentName}>
+      <span className="row-original" title={item.currentName}>
         {item.currentName}
-      </div>
+      </span>
     </div>
 
-    <button
-      type="button"
-      className="icon-button"
-      aria-expanded={expanded}
-      title="Ver y corregir los datos"
-      onClick={() => {
-        onToggleExpanded(item.id);
-      }}
-    >
-      <ChevronDown size={14} className={expanded ? "is-open" : ""} />
-    </button>
-    <button
-      type="button"
-      className="icon-button"
-      title="Quitar de la lista"
-      onClick={() => {
-        onRemove(item.id);
-      }}
-    >
-      <X size={14} />
-    </button>
+    <div className="row-actions">
+      <button
+        type="button"
+        className="icon-btn"
+        title="Revisar y corregir este archivo"
+        onClick={() => {
+          onReview(item.id);
+        }}
+      >
+        <SlidersHorizontal size={13} />
+      </button>
+      <button
+        type="button"
+        className="icon-btn"
+        title="Quitar de la lista"
+        onClick={() => {
+          onRemove(item.id);
+        }}
+      >
+        <X size={13} />
+      </button>
+    </div>
   </div>
 );

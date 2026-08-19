@@ -1,59 +1,68 @@
-@import "./tokens.css";
-
 *,
 *::before,
 *::after {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 html,
-body {
+body,
+#root {
   height: 100%;
-  background-color: var(--apple-bg);
-  color: var(--text-primary);
-  font-family: var(--font-family);
-  font-size: 14px;
-  line-height: 1.47059;
-  letter-spacing: -0.016em;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  transition:
-    background-color var(--transition),
-    color var(--transition);
 }
 
-#root {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+body {
+  margin: 0;
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: var(--text-base);
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+p,
+dl,
+dd,
+figure {
+  margin: 0;
+}
+
+ul,
+ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
 }
 
 button {
-  font-family: inherit;
-  font-size: inherit;
-  border: none;
-  background: none;
   cursor: pointer;
-  outline: none;
 }
 
-input,
-textarea,
-select {
-  font-family: inherit;
-  font-size: inherit;
-  color: inherit;
-  border: none;
-  background: none;
-  outline: none;
+:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
 }
 
-/* Custom scrollbars */
+::selection {
+  background-color: var(--brass-dim);
+}
+
+/* Barras de desplazamiento discretas: la lista es larga por naturaleza. */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
@@ -61,10 +70,42 @@ select {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--apple-surface);
-  border-radius: var(--radius-full);
+  background-color: var(--line-strong);
+  border: 3px solid var(--bg);
+  border-radius: var(--r-full);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--apple-surface-hover);
+  background-color: var(--text-faint);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spin {
+  animation: spin 900ms linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

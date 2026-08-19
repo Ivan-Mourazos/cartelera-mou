@@ -1,14 +1,16 @@
 import {
-  FileText,
+  FileVideo,
   FolderOpen,
   KeyRound,
+  ListChecks,
   Loader2,
+  Plus,
   Settings,
   Trash2,
   Undo2,
-  Zap,
+  Wand2,
 } from "lucide-react";
-import { useRef, useState, type DragEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useMemo, useState, type DragEvent } from "react";
 
 import {
   filesFromDataTransfer,
@@ -18,21 +20,23 @@ import {
 } from "../../services/file-system";
 import { BatchPreviewDialog } from "./BatchPreviewDialog";
 import { FileRow } from "./FileRow";
-import { ListToolbar } from "./ListToolbar";
-import { RowDetail } from "./RowDetail";
-import { rowStateOf } from "./row-model";
+import { NoticeStack } from "./NoticeStack";
+import { ReviewMode } from "./ReviewMode";
+import { rowStateOf, type RowState } from "./row-model";
 import { SettingsPanel } from "./SettingsPanel";
 import { useRenamerState } from "./useRenamerState";
-import { VirtualFileList } from "./VirtualFileList";
 
-/** A partir de aquí la lista se virtualiza. Por debajo no compensa. */
-const VIRTUALIZE_FROM = 50;
+const FILTERS: readonly { readonly state: RowState | undefined; readonly label: string }[] = [
+  { state: undefined, label: "Todos" },
+  { state: "ready", label: "Listos" },
+  { state: "review", label: "Revisar" },
+  { state: "error", label: "Error" },
+];
 
 export function RenamerScreen() {
   const state = useRenamerState();
   const [showSettings, setShowSettings] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const listRef = useRef<HTMLDivElement>(null);
 
   const openFolder = async (): Promise<void> => {
     const result = await openDirectoryPicker();
@@ -49,102 +53,265 @@ export function RenamerScreen() {
     await state.addFiles(files, false);
   };
 
-  const onDrop = async (event: DragEvent<HTMLDivElement>): Promise<void> => {
-    event.preventDefault();
-    setDragOver(false);
-    await state.addFiles(await filesFromDataTransfer(event.dataTransfer), false);
-  };
-
   const dropHandlers = {
-    onDragOver: (event: DragEvent<HTMLDivElement>) => {
+    onDragOver: (event: DragEvent<HTMLElement>) => {
       event.preventDefault();
       setDragOver(true);
     },
     onDragLeave: () => {
       setDragOver(false);
     },
-    onDrop: (event: DragEvent<HTMLDivElement>) => void onDrop(event),
+    onDrop: (event: DragEvent<HTMLElement>) => {
+      event.preventDefault();
+      setDragOver(false);
+      void (async () => {
+        await state.addFiles(await filesFromDataTransfer(event.dataTransfer), false);
+      })();
+    },
   };
 
-  const visible = state.visibleItems;
-  const virtualized = visible.length >= VIRTUALIZE_FROM;
+  /** Los que piden una decisión: son los que alimentan el modo revisión. */
+  const pending = useMemo(
+    () =>
+      state.items.filter((item) => {
+        const rowState = rowStateOf(item, state.planById.get(item.id));
+        return rowState === "review" || rowState === "error";
+      }),
+    [state.items, state.planById],
+  );
 
-  /**
-   * Navegación por teclado sobre la lista. Se ignora cuando el foco está dentro
-   * de un campo de texto: ahí las flechas mueven el cursor.
-   */
-  const onRowKeyDown = (event: ReactKeyboardEvent<HTMLElement>, index: number): void => {
-    const target = event.target as HTMLElement;
-    if (target.tagName === "INPUT" || target.tagName === "SELECT") return;
-
-    const move = (delta: number): void => {
-      const next = listRef.current?.querySelectorAll<HTMLElement>(".file-entry")[index + delta];
-      if (next === undefined) return;
-      event.preventDefault();
-      next.focus();
-    };
-
-    const item = visible[index];
-    if (item === undefined) return;
-
-    if (event.key === "ArrowDown") move(1);
-    else if (event.key === "ArrowUp") move(-1);
-    else if (event.key === "Enter") {
-      event.preventDefault();
-      state.toggleExpanded(item.id);
-    } else if (event.key === " ") {
-      event.preventDefault();
-      state.toggleSelected(item.id, event.shiftKey);
-    } else if (event.key === "Delete") {
-      event.preventDefault();
-      state.removeItem(item.id);
-    }
-  };
-
-  const renderRow = (index: number) => {
-    const item = visible[index];
-    if (item === undefined) return null;
-    const planItem = state.planById.get(item.id);
-    const expanded = state.expandedId === item.id;
-
-    return (
-      <article
-        key={item.id}
-        className="file-entry"
-        tabIndex={0}
-        onKeyDown={(event) => {
-          onRowKeyDown(event, index);
-        }}
-      >
-        <FileRow
-          item={item}
-          state={rowStateOf(item, planItem)}
-          selected={state.selected.has(item.id)}
-          expanded={expanded}
-          onToggleExpanded={state.toggleExpanded}
-          onToggleSelected={state.toggleSelected}
-          onOverrideName={state.setNameOverride}
-          onRemove={state.removeItem}
-        />
-        {expanded ? (
-          <RowDetail
-            item={item}
-            planItem={planItem}
-            onEditField={state.editIdentification}
-            onSetKind={state.setKind}
-            onSetSource={state.setSource}
-            onSearch={state.searchWork}
-            onChooseCandidate={(id, candidate) => void state.chooseCandidate(id, candidate)}
-            onChooseSummary={(id, candidate) => void state.chooseSummary(id, candidate)}
-            onGrantAccess={() => void state.grantAccess()}
-          />
-        ) : null}
-      </article>
-    );
-  };
+  const reviewQueue =
+    state.reviewId === null ? pending : state.items.filter((item) => item.id === state.reviewId);
 
   return (
-    <div className="app-main">
+    <>
+      <main className="app-main" {...dropHandlers}>
+        {state.items.length === 0 ? (
+          <section className={`dropzone ${dragOver ? "is-over" : ""}`}>
+            <span className="dropzone-icon" aria-hidden>
+              <FileVideo size={22} />
+            </span>
+            <h1 className="dropzone-title">Arrastra tus vídeos aquí</h1>
+            <p className="dropzone-sub">
+              Se lee el archivo de verdad —resolución, códec, audio, peso— y se propone un nombre.
+            </p>
+            <div className="dropzone-actions">
+              <button type="button" className="btn btn-primary" onClick={() => void addFiles()}>
+                <Plus size={14} aria-hidden /> Elegir archivos
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => void openFolder()}>
+                <FolderOpen size={14} aria-hidden /> Abrir carpeta
+              </button>
+            </div>
+
+            {state.provider.available ? null : (
+              <p className="notice-inline">
+                <KeyRound size={12} aria-hidden />
+                Sin clave de TMDb los títulos salen del nombre del archivo.
+                <button
+                  type="button"
+                  className="link"
+                  onClick={() => {
+                    setShowSettings(true);
+                  }}
+                >
+                  Añadir clave
+                </button>
+              </p>
+            )}
+
+            {supportsDirectRename() ? null : (
+              <p className="notice-inline warn">
+                Este navegador no puede renombrar. Usa Chrome, Edge u otro basado en Chromium.
+              </p>
+            )}
+          </section>
+        ) : (
+          <>
+            {/* Toda la acción vive aquí arriba: nada flota al pie. */}
+            <section className="command-bar">
+              <div className="counters">
+                <span className="counter-total">{state.items.length} archivos</span>
+                {state.counts.ready > 0 ? (
+                  <span className="counter c-ready">{state.counts.ready} listos</span>
+                ) : null}
+                {state.counts.review > 0 ? (
+                  <span className="counter c-review">{state.counts.review} revisar</span>
+                ) : null}
+                {state.counts.error > 0 ? (
+                  <span className="counter c-error">{state.counts.error} error</span>
+                ) : null}
+                {state.progress.active ? (
+                  <span className="counter c-busy">
+                    <Loader2 size={11} className="spin" aria-hidden />
+                    {state.progress.label} {state.progress.done}/{state.progress.total}
+                    <button type="button" className="link" onClick={state.cancel}>
+                      cancelar
+                    </button>
+                  </span>
+                ) : null}
+              </div>
+
+              <div className="command-actions">
+                {pending.length > 0 ? (
+                  <button
+                    type="button"
+                    className="btn btn-review"
+                    onClick={() => {
+                      state.openReview(null);
+                    }}
+                  >
+                    <ListChecks size={14} aria-hidden /> Revisar {pending.length}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={state.openPreview}
+                  disabled={state.plan.readyCount === 0 || state.progress.active}
+                >
+                  <Wand2 size={14} aria-hidden /> Renombrar {state.plan.readyCount}
+                </button>
+                {state.undoable === undefined ? null : (
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    onClick={() => void state.undoLast()}
+                    title="Deshacer el último lote"
+                  >
+                    <Undo2 size={14} aria-hidden />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => void addFiles()}
+                  title="Añadir archivos"
+                >
+                  <Plus size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={() => {
+                    setShowSettings(true);
+                  }}
+                  title="Configuración"
+                >
+                  <Settings size={14} />
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn"
+                  onClick={state.clearAll}
+                  title="Vaciar la lista"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </section>
+
+            <section className="filter-bar">
+              <div className="segmented" role="group" aria-label="Filtrar por estado">
+                {FILTERS.map(({ state: rowState, label }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className={state.filter.state === rowState ? "seg is-on" : "seg"}
+                    aria-pressed={state.filter.state === rowState}
+                    onClick={() => {
+                      state.setFilter({ ...state.filter, state: rowState });
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <label className="visually-hidden" htmlFor="filter-text">
+                Filtrar por nombre
+              </label>
+              <input
+                id="filter-text"
+                className="filter-input"
+                type="search"
+                placeholder="Filtrar…"
+                value={state.filter.text ?? ""}
+                onChange={(event) => {
+                  state.setFilter({ ...state.filter, text: event.target.value });
+                }}
+              />
+
+              {state.selected.size === 0 ? null : (
+                <div className="bulk">
+                  <span>{state.selected.size} sel.</span>
+                  <button
+                    type="button"
+                    className="btn btn-quiet"
+                    onClick={() => {
+                      state.batchSetKind("movie");
+                    }}
+                  >
+                    Película
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-quiet"
+                    onClick={() => {
+                      state.batchSetKind("series");
+                    }}
+                  >
+                    Serie
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-quiet"
+                    onClick={() => void state.retrySelected()}
+                  >
+                    Reintentar
+                  </button>
+                  <button type="button" className="btn btn-quiet" onClick={state.removeSelected}>
+                    Quitar
+                  </button>
+                </div>
+              )}
+            </section>
+
+            {state.canCheckDestination ? null : (
+              <p className="notice-inline warn">
+                Con archivos sueltos no se puede comprobar si ya existe otro con el nombre nuevo.
+                Abre la carpeta si quieres esa comprobación.
+              </p>
+            )}
+
+            <section className={`file-list ${dragOver ? "is-over" : ""}`}>
+              {state.visibleItems.length === 0 ? (
+                <p className="list-empty">Ningún archivo coincide con el filtro.</p>
+              ) : (
+                state.visibleItems.map((item) => (
+                  <FileRow
+                    key={item.id}
+                    item={item}
+                    state={rowStateOf(item, state.planById.get(item.id))}
+                    selected={state.selected.has(item.id)}
+                    onToggleSelected={state.toggleSelected}
+                    onOverrideName={state.setNameOverride}
+                    onReview={(id) => {
+                      state.openReview(id);
+                    }}
+                    onRemove={state.removeItem}
+                  />
+                ))
+              )}
+            </section>
+          </>
+        )}
+      </main>
+
+      {state.provider.available ? (
+        <footer className="app-footer">{state.provider.attribution.notice}</footer>
+      ) : null}
+
       {showSettings ? (
         <SettingsPanel
           settings={state.settings}
@@ -164,188 +331,21 @@ export function RenamerScreen() {
         />
       ) : null}
 
-      {state.items.length === 0 ? (
-        <div className={`dropzone-container ${dragOver ? "is-dragover" : ""}`} {...dropHandlers}>
-          <div className="dropzone-title">Arrastra tus vídeos aquí</div>
-          <div className="dropzone-subtitle">
-            Se lee el archivo de verdad y se propone un nombre. Puedes editarlo antes de renombrar.
-          </div>
-          <div className="dropzone-actions">
-            <button
-              type="button"
-              className="apple-button apple-button-primary"
-              onClick={() => void addFiles()}
-            >
-              <FileText size={16} aria-hidden /> Elegir archivos
-            </button>
-            <button
-              type="button"
-              className="apple-button apple-button-secondary"
-              onClick={() => void openFolder()}
-            >
-              <FolderOpen size={16} aria-hidden /> Abrir carpeta
-            </button>
-            <button
-              type="button"
-              className="apple-button apple-button-ghost"
-              onClick={() => {
-                setShowSettings(true);
-              }}
-              title="Configuración"
-            >
-              <Settings size={16} aria-hidden />
-            </button>
-          </div>
-
-          {state.provider.available ? null : (
-            <p className="dropzone-warning">
-              <KeyRound size={13} aria-hidden /> Sin clave de TMDb los títulos salen del nombre del
-              archivo.{" "}
-              <button
-                type="button"
-                className="link-button"
-                onClick={() => {
-                  setShowSettings(true);
-                }}
-              >
-                Añadir clave
-              </button>
-            </p>
-          )}
-
-          {supportsDirectRename() ? null : (
-            <p className="dropzone-warning">
-              Este navegador no puede renombrar archivos. Usa Chrome, Edge u otro navegador basado
-              en Chromium.
-            </p>
-          )}
-        </div>
-      ) : (
-        <>
-          <div className="list-header">
-            <span className="list-count">
-              {state.items.length} archivo(s)
-              {state.progress.active ? (
-                <span className="progress-inline">
-                  <Loader2 size={12} className="spin" aria-hidden />
-                  {state.progress.label} {state.progress.done}/{state.progress.total}
-                  <button
-                    type="button"
-                    className="apple-button apple-button-ghost"
-                    onClick={state.cancel}
-                  >
-                    Cancelar
-                  </button>
-                </span>
-              ) : null}
-            </span>
-
-            <div className="list-header-right">
-              <button
-                type="button"
-                className="apple-button apple-button-secondary"
-                onClick={() => void addFiles()}
-              >
-                <FileText size={15} aria-hidden /> Añadir
-              </button>
-              <button
-                type="button"
-                className="apple-button apple-button-ghost"
-                onClick={() => {
-                  setShowSettings((value) => !value);
-                }}
-                title="Configuración"
-              >
-                <Settings size={15} aria-hidden />
-              </button>
-              <button
-                type="button"
-                className="apple-button apple-button-ghost"
-                onClick={state.clearAll}
-                title="Vaciar lista"
-              >
-                <Trash2 size={15} aria-hidden />
-              </button>
-            </div>
-          </div>
-
-          <ListToolbar
-            counts={state.counts}
-            total={state.items.length}
-            filter={state.filter}
-            onFilter={state.setFilter}
-            selectedCount={state.selected.size}
-            onBatchKind={state.batchSetKind}
-            onRetrySelected={() => void state.retrySelected()}
-            onRemoveSelected={state.removeSelected}
-          />
-
-          {state.canCheckDestination ? null : (
-            <p className="settings-warning">
-              Con archivos sueltos no se puede comprobar si ya existe otro archivo con el nombre
-              nuevo en esa carpeta. Abre la carpeta si quieres esa comprobación.
-            </p>
-          )}
-
-          <div
-            ref={listRef}
-            className={`file-list ${dragOver ? "is-dragover" : ""}`}
-            {...dropHandlers}
-          >
-            {visible.length === 0 ? (
-              <p className="list-empty">Ningún archivo coincide con el filtro.</p>
-            ) : virtualized ? (
-              <VirtualFileList count={visible.length} scrollRef={listRef} renderRow={renderRow} />
-            ) : (
-              visible.map((_, index) => renderRow(index))
-            )}
-          </div>
-
-          <div className="floating-dock">
-            <button
-              type="button"
-              className="apple-button apple-button-primary"
-              onClick={state.openPreview}
-              disabled={state.plan.readyCount === 0 || state.progress.active}
-            >
-              <Zap size={15} aria-hidden /> Renombrar {state.plan.readyCount}
-            </button>
-            {state.undoable === undefined ? null : (
-              <button
-                type="button"
-                className="apple-button apple-button-secondary"
-                onClick={() => void state.undoLast()}
-              >
-                <Undo2 size={14} aria-hidden /> Deshacer
-              </button>
-            )}
-          </div>
-        </>
-      )}
-
-      {state.notices.length === 0 ? null : (
-        <div className="toast-stack" role="status" aria-live="polite">
-          {state.notices.map((notice) => (
-            <div key={notice.id} className="toast">
-              {notice.text}
-              <button
-                type="button"
-                className="icon-button"
-                aria-label="Descartar aviso"
-                onClick={() => {
-                  state.dismissNotice(notice.id);
-                }}
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {state.provider.available ? (
-        <footer className="provider-attribution">{state.provider.attribution.notice}</footer>
+      {state.reviewOpen && reviewQueue.length > 0 ? (
+        <ReviewMode
+          items={reviewQueue}
+          onClose={state.closeReview}
+          onEditField={state.editIdentification}
+          onSetKind={state.setKind}
+          onSetSource={state.setSource}
+          onSetSpanishVariant={state.setSpanishVariant}
+          onChooseSummary={(id, candidate) => void state.chooseSummary(id, candidate)}
+          onChooseCandidate={(id, candidate) => void state.chooseCandidate(id, candidate)}
+          onSearch={state.searchWork}
+        />
       ) : null}
-    </div>
+
+      <NoticeStack notices={state.notices} onDismiss={state.dismissNotice} />
+    </>
   );
 }

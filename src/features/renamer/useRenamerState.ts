@@ -22,6 +22,7 @@ import {
   recomputeName,
   withIdentification,
   withSource,
+  withSpanishVariant,
   type MediaItem,
 } from "../../services/item-pipeline";
 import { applyCandidate } from "../../services/identification-service";
@@ -61,10 +62,16 @@ export interface Progress {
 
 const IDLE_PROGRESS: Progress = { active: false, label: "", done: 0, total: 0, current: "" };
 
+export type NoticeTone = "info" | "success" | "error";
+
 export interface Notice {
   readonly id: string;
   readonly text: string;
+  readonly tone: NoticeTone;
 }
+
+/** Tres a la vez es lo máximo legible; los viejos se van solos. */
+const MAX_NOTICES = 3;
 
 let noticeSequence = 0;
 
@@ -78,8 +85,10 @@ export const useRenamerState = () => {
   const [notices, setNotices] = useState<readonly Notice[]>([]);
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
   const [filter, setFilter] = useState<ListFilter>({});
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  /** `null` = recorrer todos los pendientes; un id = revisar solo ese. */
+  const [reviewId, setReviewId] = useState<string | null>(null);
   const [undoable, setUndoable] = useState<RenameLogRecord | undefined>(() =>
     latestUndoableBatch(),
   );
@@ -100,11 +109,11 @@ export const useRenamerState = () => {
     setItems((current) => current.map((item) => recomputeName(item, next)));
   }, []);
 
-  /** Cola de avisos: un mensaje nuevo no borra el anterior sin haberse leído. */
-  const pushNotice = useCallback((text: string) => {
+  /** Cola acotada de avisos. Cada uno caduca solo; ver `NoticeStack`. */
+  const pushNotice = useCallback((text: string, tone: NoticeTone = "info") => {
     noticeSequence += 1;
     const id = `notice-${String(noticeSequence)}`;
-    setNotices((current) => [...current, { id, text }]);
+    setNotices((current) => [...current, { id, text, tone }].slice(-MAX_NOTICES));
   }, []);
 
   const dismissNotice = useCallback((id: string) => {
@@ -169,7 +178,7 @@ export const useRenamerState = () => {
   const addFiles = useCallback(
     async (picked: readonly PickedFile[], replace: boolean) => {
       if (picked.length === 0) {
-        pushNotice("No se encontraron archivos de vídeo compatibles.");
+        pushNotice("No se encontraron archivos de vídeo compatibles.", "error");
         return;
       }
       const created = picked.map((file) => createMediaItem(file, settings));
@@ -219,7 +228,6 @@ export const useRenamerState = () => {
     setExistingNames([]);
     setSelected(new Set());
     setFilter({});
-    setExpandedId(null);
   }, [cancel]);
 
   const setNameOverride = useCallback(
@@ -236,13 +244,13 @@ export const useRenamerState = () => {
   const searchWork = useCallback(
     async (query: string, kind: "movie" | "series"): Promise<readonly ProviderCandidate[]> => {
       if (!provider.available) {
-        pushNotice("Añade tu clave de TMDb en la configuración para poder buscar.");
+        pushNotice("Añade tu clave de TMDb en la configuración para poder buscar.", "error");
         return [];
       }
       try {
         return await provider.search({ title: query, kind });
       } catch (error) {
-        pushNotice(error instanceof Error ? error.message : "No se pudo buscar en TMDb.");
+        pushNotice(error instanceof Error ? error.message : "No se pudo buscar en TMDb.", "error");
         return [];
       }
     },
@@ -338,10 +346,6 @@ export const useRenamerState = () => {
     },
     [items],
   );
-
-  const toggleExpanded = useCallback((id: string) => {
-    setExpandedId((current) => (current === id ? null : id));
-  }, []);
 
   /** Marca a mano varias filas como película o serie de una vez. */
   const batchSetKind = useCallback(
@@ -463,8 +467,27 @@ export const useRenamerState = () => {
       result.failed === 0
         ? `Renombrados ${String(result.renamed)} archivo(s).`
         : `Renombrados ${String(result.renamed)}; ${String(result.failed)} con error: ${firstError ?? "desconocido"}`,
+      result.failed === 0 ? "success" : "error",
     );
   }, [folderName, items, planFor, portFor, pushNotice]);
+
+  const openReview = useCallback((id: string | null) => {
+    setReviewId(id);
+    setReviewOpen(true);
+  }, []);
+
+  const closeReview = useCallback(() => {
+    setReviewOpen(false);
+    setReviewId(null);
+  }, []);
+
+  /** Fija a mano si el español de las pistas ambiguas es castellano o latino. */
+  const setSpanishVariant = useCallback(
+    (id: string, variant: "castilian" | "latin") => {
+      patchItem(id, (item) => withSpanishVariant(item, variant, settings));
+    },
+    [patchItem, settings],
+  );
 
   /** Renombrar no escribe nada por sí solo: abre la previsualización. */
   const openPreview = useCallback(() => {
@@ -535,14 +558,17 @@ export const useRenamerState = () => {
     selected,
     toggleSelected,
     setSelected,
-    expandedId,
-    toggleExpanded,
     batchSetKind,
     removeSelected,
     retrySelected,
     previewOpen,
     openPreview,
     closePreview,
+    reviewOpen,
+    reviewId,
+    openReview,
+    closeReview,
+    setSpanishVariant,
     chooseSummary,
     notices,
     pushNotice,
