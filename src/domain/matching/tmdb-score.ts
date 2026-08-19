@@ -18,6 +18,7 @@ export interface TmdbMovieCandidate {
   readonly runtimeMinutes?: number;
   /** Posición en la respuesta del proveedor: su relevancia también es un dato. */
   readonly providerOrder?: number;
+  readonly popularity?: number;
 }
 
 export type MatchBand = "high" | "medium" | "low";
@@ -33,6 +34,7 @@ export interface MatchScoreComponent {
     | "year-different"
     | "original-language-present"
     | "provider-relevance"
+    | "popularity"
     | "runtime-compatible"
     | "runtime-close"
     | "runtime-different"
@@ -226,6 +228,26 @@ const scoreRawCandidate = (query: TmdbMatchQuery, candidate: TmdbMovieCandidate)
       points,
       explanation: `Resultado n.º ${String(order + 1)} por relevancia en el proveedor: +${String(points)}`,
     });
+  }
+
+  /**
+   * Popularidad, en escala logarítmica y con techo bajo.
+   *
+   * Cuando dos títulos se parecen igual —«Venom 2» contra «Mordida Mortal» y
+   * contra «Venom: Habrá matanza»— lo que decide es que una la ha visto medio
+   * mundo y la otra casi nadie. No puede dominar: 12 puntos como mucho, frente
+   * a los 50 de un título exacto o los 30 de una duración compatible.
+   */
+  const popularity = candidate.popularity;
+  if (popularity !== undefined && popularity > 0) {
+    const points = Math.round(Math.min(12, Math.log10(popularity + 1) * 5));
+    if (points > 0) {
+      components.push({
+        code: "popularity",
+        points,
+        explanation: `Popularidad ${popularity.toFixed(1)} en el proveedor: +${String(points)}`,
+      });
+    }
   }
 
   if (query.previouslySelectedTmdbId === candidate.id) {

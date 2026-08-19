@@ -27,6 +27,8 @@ export interface ProviderCandidate {
   readonly year: number | undefined;
   /** Duración oficial. Es la señal de desempate más fuerte que hay. */
   readonly runtimeMinutes: number | undefined;
+  /** Popularidad del proveedor. Desempata títulos ambiguos. */
+  readonly popularity: number | undefined;
   readonly posterUrl: string | undefined;
   readonly overview: string | undefined;
 }

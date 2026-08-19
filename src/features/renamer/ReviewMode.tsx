@@ -24,6 +24,7 @@ export interface ReviewModeProps {
     type: SourceType | undefined,
   ) => void;
   readonly onSetSpanishVariant: (id: string, variant: "castilian" | "latin") => void;
+  readonly onSetSpanishVariantForAll: (variant: "castilian" | "latin") => void;
   readonly onChooseSummary: (id: string, candidate: ProviderCandidateSummary) => void;
   readonly onChooseCandidate: (id: string, candidate: ProviderCandidate) => void;
   readonly onSearch: (
@@ -190,6 +191,7 @@ export const ReviewMode = ({
   onSetKind,
   onSetSource,
   onSetSpanishVariant,
+  onSetSpanishVariantForAll,
   onChooseSummary,
   onChooseCandidate,
   onSearch,
@@ -229,6 +231,8 @@ export const ReviewMode = ({
           current.identification.episode.value === undefined),
     };
   }, [current]);
+
+  const alsoAmbiguous = items.filter(hasAmbiguousSpanish).length;
 
   if (current === undefined) return null;
 
@@ -289,6 +293,30 @@ export const ReviewMode = ({
                   Latino
                 </button>
               </div>
+              {alsoAmbiguous > 1 ? (
+                <p className="review-hint">
+                  Otros {alsoAmbiguous - 1} archivos tienen la misma duda.{" "}
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => {
+                      onSetSpanishVariantForAll("castilian");
+                    }}
+                  >
+                    Castellano para todos
+                  </button>
+                  {" · "}
+                  <button
+                    type="button"
+                    className="link"
+                    onClick={() => {
+                      onSetSpanishVariantForAll("latin");
+                    }}
+                  >
+                    Latino para todos
+                  </button>
+                </p>
+              ) : null}
             </section>
           ) : null}
 

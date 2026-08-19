@@ -40,6 +40,7 @@ const candidate = (
   originalLanguage: "en",
   year,
   runtimeMinutes: undefined,
+  popularity: undefined,
   posterUrl: undefined,
   overview: undefined,
 });

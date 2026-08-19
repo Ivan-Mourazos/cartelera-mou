@@ -21,6 +21,7 @@ import {
   preserveUserEdits,
   recomputeName,
   withIdentification,
+  hasAmbiguousSpanish,
   withSource,
   withSpanishVariant,
   type MediaItem,
@@ -299,6 +300,7 @@ export const useRenamerState = () => {
         originalLanguage: undefined,
         year: summary.year,
         runtimeMinutes: undefined,
+        popularity: undefined,
         posterUrl: summary.posterUrl,
         overview: undefined,
       });
@@ -489,6 +491,30 @@ export const useRenamerState = () => {
     [patchItem, settings],
   );
 
+  /**
+   * Misma variante para todos los pendientes.
+   *
+   * Cuando el contenedor trae `spa` a secas suele traerlo en todo el lote, y
+   * contestar lo mismo diez veces seguidas no aporta nada.
+   */
+  const setSpanishVariantForAll = useCallback(
+    (variant: "castilian" | "latin") => {
+      let touched = 0;
+      setItems((current) =>
+        current.map((item) => {
+          if (!hasAmbiguousSpanish(item)) return item;
+          touched += 1;
+          return withSpanishVariant(item, variant, settings);
+        }),
+      );
+      pushNotice(
+        `${variant === "castilian" ? "Castellano" : "Latino"} aplicado a ${String(touched)} archivo(s).`,
+        "success",
+      );
+    },
+    [pushNotice, settings],
+  );
+
   /** Renombrar no escribe nada por sí solo: abre la previsualización. */
   const openPreview = useCallback(() => {
     setPreviewOpen(true);
@@ -569,6 +595,7 @@ export const useRenamerState = () => {
     openReview,
     closeReview,
     setSpanishVariant,
+    setSpanishVariantForAll,
     chooseSummary,
     notices,
     pushNotice,

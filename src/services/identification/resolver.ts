@@ -75,6 +75,7 @@ const toScoring = (candidate: ProviderCandidate, order?: number): TmdbMovieCandi
     : { originalLanguage: candidate.originalLanguage }),
   ...(candidate.year === undefined ? {} : { releaseYear: candidate.year }),
   ...(candidate.runtimeMinutes === undefined ? {} : { runtimeMinutes: candidate.runtimeMinutes }),
+  ...(candidate.popularity === undefined ? {} : { popularity: candidate.popularity }),
 });
 
 const summarize = (

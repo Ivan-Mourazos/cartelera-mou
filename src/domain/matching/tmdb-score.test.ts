@@ -93,3 +93,30 @@ describe("señales duras de desempate", () => {
     ).toBe(true);
   });
 });
+
+describe("popularidad como desempate", () => {
+  it("una obra conocida gana a una homónima oscura con títulos igual de parecidos", () => {
+    // Caso real: «Venom 2» puntuaba más alto contra «Mordida Mortal» (1989) que
+    // contra la secuela que buscaba de verdad.
+    const ranked = rankTmdbCandidates({ title: "Venom 2" }, [
+      { id: 1, title: "Mordida Mortal", releaseYear: 1989, popularity: 0.6 },
+      { id: 2, title: "Venom: Habrá matanza", releaseYear: 2021, popularity: 180 },
+    ]);
+    expect(ranked.candidates[0]?.candidate.id).toBe(2);
+  });
+
+  it("no puede con un título exacto: 12 puntos como techo", () => {
+    const ranked = rankTmdbCandidates({ title: "Dune" }, [
+      { id: 1, title: "Dune", popularity: 1 },
+      { id: 2, title: "Otra película distinta", popularity: 900 },
+    ]);
+    expect(ranked.candidates[0]?.candidate.id).toBe(1);
+  });
+
+  it("sin popularidad no penaliza", () => {
+    const ranked = rankTmdbCandidates({ title: "Dune" }, [{ id: 1, title: "Dune" }]);
+    expect(
+      ranked.candidates[0]?.components.every((component) => component.code !== "popularity"),
+    ).toBe(true);
+  });
+});

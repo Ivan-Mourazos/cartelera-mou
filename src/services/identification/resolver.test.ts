@@ -16,6 +16,7 @@ const candidate = (partial: Partial<ProviderCandidate> = {}): ProviderCandidate 
   originalLanguage: "en",
   year: 2021,
   runtimeMinutes: 155,
+  popularity: undefined,
   posterUrl: undefined,
   overview: undefined,
   ...partial,

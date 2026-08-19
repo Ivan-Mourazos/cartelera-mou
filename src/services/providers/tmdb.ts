@@ -29,6 +29,7 @@ const DEFAULT_TIMEOUT_MS = 10_000;
 const POSTER_PATH = /^\/[A-Za-z0-9._-]+$/u;
 
 const movieResultSchema = z.object({
+  popularity: z.number().optional(),
   id: z.number().int().positive(),
   runtime: z.number().optional(),
   title: z.string().optional(),
@@ -40,6 +41,7 @@ const movieResultSchema = z.object({
 });
 
 const seriesResultSchema = z.object({
+  popularity: z.number().optional(),
   id: z.number().int().positive(),
   episode_run_time: z.array(z.number()).optional(),
   name: z.string().optional(),
@@ -57,6 +59,7 @@ const searchSchema = z.object({
 
 /** Forma común de película y serie: TMDb usa nombres distintos para lo mismo. */
 const anyResultSchema = z.object({
+  popularity: z.number().optional(),
   id: z.number().int().positive(),
   media_type: z.string().optional(),
   title: z.string().optional(),
@@ -239,6 +242,7 @@ export const createTmdbProvider = (credentials: TmdbCredentials): MetadataProvid
           originalLanguage: emptyToUndefined(item.original_language),
           year: yearOf(item.release_date),
           runtimeMinutes: item.runtime,
+          popularity: item.popularity,
           posterUrl: posterUrl(item.poster_path),
           overview: emptyToUndefined(item.overview),
         });
@@ -256,6 +260,7 @@ export const createTmdbProvider = (credentials: TmdbCredentials): MetadataProvid
           originalLanguage: emptyToUndefined(item.original_language),
           year: yearOf(item.first_air_date),
           runtimeMinutes: item.episode_run_time?.[0],
+          popularity: item.popularity,
           posterUrl: posterUrl(item.poster_path),
           overview: emptyToUndefined(item.overview),
         });
@@ -293,6 +298,7 @@ export const createTmdbProvider = (credentials: TmdbCredentials): MetadataProvid
       originalLanguage: emptyToUndefined(item.original_language),
       year: yearOf(item.release_date ?? item.first_air_date),
       runtimeMinutes: item.runtime ?? item.episode_run_time?.[0],
+      popularity: item.popularity,
       posterUrl: posterUrl(item.poster_path),
       overview: emptyToUndefined(item.overview),
     };

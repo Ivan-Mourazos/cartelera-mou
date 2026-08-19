@@ -357,6 +357,7 @@ export function RenamerScreen() {
           onSetKind={state.setKind}
           onSetSource={state.setSource}
           onSetSpanishVariant={state.setSpanishVariant}
+          onSetSpanishVariantForAll={state.setSpanishVariantForAll}
           onChooseSummary={(id, candidate) => void state.chooseSummary(id, candidate)}
           onChooseCandidate={(id, candidate) => void state.chooseCandidate(id, candidate)}
           onSearch={state.searchWork}
